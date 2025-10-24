@@ -39,6 +39,7 @@ import ConnectWalletModalVue from '@/components/ConnectWalletModal/ConnectWallet
   flex: 1;
   background: #F5F5F7;
   padding-bottom: 0;
+  padding: 0 20px;
 }
 
 .app-footer {
