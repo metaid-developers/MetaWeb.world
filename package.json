@@ -1,5 +1,6 @@
 {
   "name": "MetaWeb.World",
+ 
   "private": true,
   "version": "1.0.0",
   "description": "Vue 3 + Metalet Wallet + Complete Login/Registration Flow (Reference: IDChat) - Enterprise-grade Web3 DApp",

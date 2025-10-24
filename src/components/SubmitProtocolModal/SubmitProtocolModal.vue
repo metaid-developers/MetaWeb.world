@@ -137,17 +137,98 @@ const parseValue = (value: string, type: string): any => {
   try {
     switch (type) {
       case 'Number':
-        return Number(value)
+        const num = Number(value)
+        if (isNaN(num)) {
+          throw new Error('Invalid number')
+        }
+        return num
       case 'Object':
-        return JSON.parse(value)
+        // 尝试解析为JSON对象
+        try {
+          // 首先尝试标准JSON解析
+          const parsedObj = JSON.parse(value)
+          if (typeof parsedObj !== 'object' || Array.isArray(parsedObj)) {
+            throw new Error('Not a valid object')
+          }
+          return parsedObj
+        } catch (jsonError) {
+          // 如果标准JSON解析失败，尝试修复常见的JSON格式问题
+          try {
+            // 修复key没有双引号的问题，包括嵌套对象
+            let fixedJson = value.trim()
+            
+            // 递归修复所有key的双引号问题
+            const fixKeys = (str: string): string => {
+              // 匹配 key: 模式（key可能是字母数字下划线）
+              return str.replace(/(\w+):/g, '"$1":')
+            }
+            
+            fixedJson = fixKeys(fixedJson)
+            const parsedObj = JSON.parse(fixedJson)
+            
+            if (typeof parsedObj !== 'object' || Array.isArray(parsedObj)) {
+              throw new Error('Not a valid object')
+            }
+            return parsedObj
+          } catch (fixError) {
+            // 如果还是失败，尝试更复杂的修复
+            try {
+              // 处理更复杂的嵌套结构
+              let complexFixed = value.trim()
+              
+              // 修复所有可能的key格式问题
+              complexFixed = complexFixed.replace(/(\w+):/g, '"$1":')
+              
+              // 修复字符串值没有引号的问题（简单情况）
+              complexFixed = complexFixed.replace(/:\s*([^",{\[\s][^,}\]]*?)([,}])/g, ': "$1"$2')
+              
+              const parsedObj = JSON.parse(complexFixed)
+              if (typeof parsedObj !== 'object' || Array.isArray(parsedObj)) {
+                throw new Error('Not a valid object')
+              }
+              return parsedObj
+            } catch (complexError) {
+              throw new Error('Invalid object format')
+            }
+          }
+        }
       case 'Array':
-        return JSON.parse(value)
+        // 尝试解析为JSON数组
+        try {
+          const parsedArr = JSON.parse(value)
+          if (!Array.isArray(parsedArr)) {
+            throw new Error('Not a valid array')
+          }
+          return parsedArr
+        } catch (jsonError) {
+          // 如果标准JSON解析失败，尝试修复常见的JSON格式问题
+          try {
+            // 修复key没有双引号的问题（如果数组包含对象）
+            let fixedJson = value.trim()
+            
+            // 修复所有可能的key格式问题
+            fixedJson = fixedJson.replace(/(\w+):/g, '"$1":')
+            
+            // 修复字符串值没有引号的问题（简单情况）
+            fixedJson = fixedJson.replace(/:\s*([^",{\[\s][^,}\]]*?)([,}])/g, ': "$1"$2')
+            
+            const parsedArr = JSON.parse(fixedJson)
+            if (!Array.isArray(parsedArr)) {
+              throw new Error('Not a valid array')
+            }
+            return parsedArr
+          } catch (fixError) {
+            throw new Error('Invalid array format')
+          }
+        }
       case 'String':
       default:
-        return value
+        return value.trim()
     }
   } catch (error) {
-    return value
+    // 如果解析失败，返回原始字符串值
+    console.warn(`Failed to parse value as ${type}:`, error)
+    return value.trim()
   }
 }
 
@@ -174,13 +255,50 @@ const generateJSON5WithComments = () => {
   metaDataItems.value.forEach((item, index) => {
     if (item.key) {
       if (item.description) {
-        result += `  // ${item.description}\n`
+        result += `// ${item.description}\n`
       }
 
       const parsedValue = parseValue(item.value, item.valueType)
-      const valueStr = typeof parsedValue === 'string'
-        ? `"${parsedValue}"`
-        : JSON.stringify(parsedValue, null, 2).split('\n').map((line, i) => i === 0 ? line : '  ' + line).join('\n')
+      
+      // 根据value类型生成正确的JSON格式
+      let valueStr = ''
+      switch (item.valueType) {
+        case 'String':
+          // 字符串类型：确保用双引号包围
+          valueStr = `"${parsedValue}"`
+          break
+        case 'Number':
+          // 数字类型：直接显示，不需要引号
+          valueStr = parsedValue.toString()
+          break
+        case 'Object':
+          // 对象类型：格式化为标准JSON格式
+          try {
+            // 使用JSON.stringify重新格式化，确保key有双引号
+            const objStr = JSON.stringify(parsedValue, null, 2)
+            // 为每行添加适当的缩进
+            valueStr = objStr.split('\n').map((line, i) => i === 0 ? line : '  ' + line).join('\n')
+          } catch (error) {
+            // 如果解析失败，当作字符串处理
+            valueStr = `"${item.value}"`
+          }
+          break
+        case 'Array':
+          // 数组类型：格式化为标准JSON格式
+          try {
+            // 使用JSON.stringify重新格式化，确保格式正确
+            const arrStr = JSON.stringify(parsedValue, null, 2)
+            // 为每行添加适当的缩进
+            valueStr = arrStr.split('\n').map((line, i) => i === 0 ? line : '  ' + line).join('\n')
+          } catch (error) {
+            // 如果解析失败，当作字符串处理
+            valueStr = `"${item.value}"`
+          }
+          break
+        default:
+          // 默认情况：当作字符串处理
+          valueStr = `"${parsedValue}"`
+      }
 
       result += `  "${item.key}": ${valueStr}`
 
