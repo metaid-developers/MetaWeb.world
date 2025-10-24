@@ -7,10 +7,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 .claude
-
+scripts
 node_modules
 dist
 dist-ssr
+dev.sh
+test-setup.sh
 *.local
 
 # Editor directories and files
