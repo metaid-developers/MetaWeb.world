@@ -11,8 +11,9 @@ scripts
 node_modules
 dist
 dist-ssr
-dev.sh
-test-setup.sh
+*.sh
+
+
 *.local
 
 # Editor directories and files
