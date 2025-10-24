@@ -38,7 +38,7 @@ async function createBuzz(metaidData:Omit<MetaidData, 'revealAddr'>,options:Crea
         body: JSON.stringify(metaidData.body),
       
         })
-
+        
         console.log('createBuzz result', result)
         return result
         }
@@ -50,7 +50,7 @@ async function createFile(metaidData:Omit<MetaidData, 'revealAddr'>,options:Crea
         console.log('📱 [File] Processing file')
         return await createPin({
         operation: metaidData.operation || 'create',
-        body:options.chain == 'btc' ? hexToBase64(options.attachments[0]!.data) : hexToUint8Array(options.attachments[0]!.data),
+        body:options.chain == 'btc' ? hexToBase64(options.attachments![0]!.data) : hexToUint8Array(options.attachments![0]!.data),
         path: metaidData.path || `${AddressHost}:/file`,
         contentType: metaidData.contentType || `${options.mime};binary`,
         encryption: metaidData.encryption || '0',
@@ -62,16 +62,18 @@ async function createFile(metaidData:Omit<MetaidData, 'revealAddr'>,options:Crea
         defaultOptions: {
         chain:options.chain || 'mvc',
         network:options.network || 'mainnet',
-        signMessage: 'Create File'
+        signMessage: 'Create File',
+      
         }
         })
-
+        
         const result = await buildTransaction({
         path: metaidData.path,
-        body: options.chain == 'btc' ? hexToBase64(options.attachments[0]!.data) : hexToUint8Array(options.attachments[0]!.data),
-        contentType:`${options.mime};binary`
+        body: options.chain == 'btc' ? hexToBase64(options.attachments![0]!.data) : hexToUint8Array(options.attachments![0]!.data),
+        contentType:`${options.mime};binary`,
+       
         })
-
+            debugger
         console.log('createFile result', result)
         return result
 }
@@ -102,10 +104,78 @@ async function createPayLike(metaidData:Omit<MetaidData, 'revealAddr'>,options:C
         const result = await buildTransaction({
         path: metaidData.path,
         body: JSON.stringify(metaidData.body),
-     
+
         })
 
         console.log('createPayLike result', result)
+        return result
+}
+
+async function createPayComment(metaidData:Omit<MetaidData, 'revealAddr'>,options:CreatePinOptions = {}) {
+    registerProtocolRule(ProtocolCollection[NodeName.PayComment].protocol, {
+        pattern: new RegExp(`${AddressHost ? AddressHost.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : ''}:/protocols/paycomment`, 'i'),
+        handler: async (metaidData) => {
+      
+        return await createPin({
+        operation: metaidData.operation || 'create',
+        body: metaidData.body,
+        path: metaidData.path || `${AddressHost}:/protocols/paycomment`,
+        contentType: metaidData.contentType || 'text/plain;utf-8',
+        encryption: metaidData.encryption || '0',
+        version: metaidData.version || '1.0.0',
+        encoding: metaidData.encoding || 'utf-8'
+        }, metaidData.options || {})
+        },
+        description: '评论协议处理',
+        defaultOptions: {
+        chain:options.chain || 'mvc',
+        network:options.network || 'mainnet',
+        signMessage: 'Pay Comment'
+        }
+        })
+
+        const result = await buildTransaction({
+        path: metaidData.path,
+        body: JSON.stringify(metaidData.body),
+
+        })
+
+        console.log('createPayComment result', result)
+        return result
+}
+
+async function uploadProtocol(metaidData:Omit<MetaidData, 'revealAddr'>,options:CreatePinOptions = {}) {
+    
+    registerProtocolRule(ProtocolCollection[NodeName.Metaprotocols].protocol, {
+        pattern: new RegExp(`/protocols/metaprotocols`, 'i'),
+        handler: async (metaidData) => {
+        console.log('📋 [Metaprotocols] Processing metaprotocols protocol')
+        return await createPin({
+        operation: metaidData.operation || 'create',
+        body: metaidData.body,
+        path: metaidData.path || `/protocols/metaprotocols`,
+        contentType: metaidData.contentType || 'application/json',
+        encryption: metaidData.encryption || '0',
+        version: metaidData.version || '1.0.0',
+        encoding: metaidData.encoding || 'utf-8'
+        }, metaidData.options || {})
+        },
+        description: 'Upload protocols',
+        defaultOptions: {
+        chain:options.chain || 'mvc',
+        network:options.network || 'mainnet',
+        signMessage: 'Upload protocols',
+        
+        }
+        })
+
+        const result = await buildTransaction({
+        path: metaidData.path,
+        body: JSON.stringify(metaidData.body),
+       
+        })
+        debugger
+        console.log('uploadProtocol result', result)
         return result
 }
 
@@ -115,7 +185,9 @@ async function createPayLike(metaidData:Omit<MetaidData, 'revealAddr'>,options:C
         return {
             createBuzz,
             createFile,
-            createPayLike
+            createPayLike,
+            uploadProtocol,
+            createPayComment
         }
 
         })

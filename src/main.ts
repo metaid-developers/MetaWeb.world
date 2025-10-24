@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import { pinia } from './stores'
+import router from './router'
 import './style.css'
 import App from './App.vue'
 import Image from '@/components/Image/Image.vue'
@@ -11,17 +12,18 @@ import { configManager } from './utils/config'
 async function startApp() {
   // 加载外部配置
   await configManager.loadConfig();
-  
+
   const app = createApp(App)
   app.component('UserAvatar', UserAvatar)
   app.component('Image', Image)
   app.use(pinia)
-  
+  app.use(router)
+
   // 将配置管理器注入到全局属性
   app.config.globalProperties.$config = configManager;
-  
+
   app.mount('#app')
-  
+
   console.log('🚀 应用启动完成');
 }
 

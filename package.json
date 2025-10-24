@@ -1,10 +1,10 @@
 {
-  "name": "metaid-demo-app",
+  "name": "MetaWeb.World",
   "private": true,
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Vue 3 + Metalet Wallet + Complete Login/Registration Flow (Reference: IDChat) - Enterprise-grade Web3 DApp",
   "type": "module",
-  "author": "",
+  "author": "MetaWeb.World",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -31,13 +31,15 @@
     "browser-image-compression": "^2.0.2",
     "crypto-js": "^4.2.0",
     "dexie": "^4.2.1",
+    "json5": "^2.2.3",
     "lodash": "^4.17.21",
     "meta-contract": "^0.4.16",
     "pinia": "^3.0.3",
     "readline": "^1.3.0",
     "semver": "^7.7.3",
     "vue": "^3.5.22",
-    "vue-i18n": "^11.1.12"
+    "vue-i18n": "^11.1.12",
+    "vue-router": "^4.6.3"
   },
   "devDependencies": {
     "@types/node": "^20.19.0",
