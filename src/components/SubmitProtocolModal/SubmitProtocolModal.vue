@@ -260,7 +260,7 @@ const handleSubmit = async () => {
 
     // 构建协议数据
     const protocolContent = generateJSON5WithComments()
-    debugger
+    
     const metaidData = {
       path: `/protocols/metaprotocol`,
       body: {
@@ -285,10 +285,10 @@ const handleSubmit = async () => {
     const options={
       serialAction:'finish' as const,
     }
-    debugger
+    
     // 调用上链方法
     const result = await uploadProtocol(metaidData,options)
-    debugger
+    
     console.log('协议上链结果:', result)
 
     // 提取 txid

@@ -73,7 +73,7 @@ async function createFile(metaidData:Omit<MetaidData, 'revealAddr'>,options:Crea
         contentType:`${options.mime};binary`,
        
         })
-            debugger
+            
         console.log('createFile result', result)
         return result
 }
@@ -172,9 +172,9 @@ async function uploadProtocol(metaidData:Omit<MetaidData, 'revealAddr'>,options:
         const result = await buildTransaction({
         path: metaidData.path,
         body: JSON.stringify(metaidData.body),
-       
+        contentType:`application/json`,
         })
-        debugger
+        
         console.log('uploadProtocol result', result)
         return result
 }
