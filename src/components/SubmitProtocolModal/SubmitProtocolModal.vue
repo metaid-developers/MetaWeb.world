@@ -687,6 +687,25 @@ const getPlaceholder = (type: string) => {
                           </div>
                         </div>
                       </div>
+
+                      <!-- JSON 预览区域 -->
+                      <div class="mt-6">
+                        <div class="flex items-center justify-between mb-3">
+                          <h5 class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                            </svg>
+                            JSON 预览
+                          </h5>
+                          <span class="text-xs text-gray-500">
+                            实时显示协议内容
+                          </span>
+                        </div>
+                        
+                        <div class="json-preview-container">
+                          <pre class="json-preview-content">{{ generateJSON5WithComments() }}</pre>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </form>
@@ -789,5 +808,37 @@ const getPlaceholder = (type: string) => {
 
 .btn-secondary {
   @apply px-6 py-2.5 bg-white text-gray-700 font-semibold rounded-lg border-2 border-gray-300 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.json-preview-container {
+  @apply bg-gray-900 border border-gray-700 rounded-lg overflow-hidden;
+}
+
+.json-preview-content {
+  @apply text-white text-sm font-mono p-4 overflow-x-auto whitespace-pre-wrap;
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+  line-height: 1.5;
+  
+  /* JSON 语法高亮 */
+  color: #e5e7eb;
+  
+  /* 滚动条样式 */
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #374151;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #6b7280;
+    border-radius: 4px;
+    
+    &:hover {
+      background: #9ca3af;
+    }
+  }
 }
 </style>
