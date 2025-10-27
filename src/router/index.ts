@@ -18,14 +18,14 @@ const routes: Array<RouteRecordRaw> = [
       navKey: 'protocol'
     }
   },
-  // {
-  //   path: '/metaapp',
-  //   name: 'MetaApp',
-  //   component: () => import('@/views/Protocol.vue'), // 临时使用相同组件
-  //   meta: { 
-   
-  //     navKey: 'metaapp'
-  //   }
+  {
+    path: '/metaapp',
+    name: 'MetaApp',
+    component: () => import('@/views/MetaApp.vue'), // 临时使用相同组件
+    meta: { 
+      navKey: 'metaapp'
+    }
+  }
   // },
   // {
   //   path: '/services',

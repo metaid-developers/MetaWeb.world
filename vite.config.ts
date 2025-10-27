@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import * as path from 'path'
 import stdLibBrowser from 'node-stdlib-browser'
-
+import nodePolyfills from 'rollup-plugin-polyfill-node'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -40,7 +40,19 @@ export default defineConfig({
     host: true,
   },
   build: {
+    target:'es2015',
+    minify:true,
+    rollupOptions:{
+        // @ts-ignore
+        plugins: [nodePolyfills()],
+          output: {
+          sourcemap: 'inline',
+            entryFileNames: `[name].[hash].js`,
+            chunkFileNames: `[name].[hash].js`,
+            assetFileNames: `[name].[hash].[ext]`
+        },
+    },
     // 生成 sourcemap 以便调试
-    sourcemap: true,
+    sourcemap: 'inline',
   },
 })

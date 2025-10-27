@@ -216,12 +216,12 @@ const { createFile } = useCreateProtocols()
 const { showToast } = useToast()
 
 // 文件大小限制 (1MB)
-const MAX_FILE_SIZE = 1024 * 1024
+const MAX_FILE_SIZE =1 * 1024 * 1024
 
 // 验证文件
 const validateFile = (file: File): string | null => {
   if (file.size > MAX_FILE_SIZE) {
-    return `文件 "${file.name}" 超过1MB大小限制`
+    return `文件 "${file.name}" 超过5MB大小限制`
   }
   return null
 }

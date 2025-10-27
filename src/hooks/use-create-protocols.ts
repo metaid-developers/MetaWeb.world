@@ -146,14 +146,14 @@ async function createPayComment(metaidData:Omit<MetaidData, 'revealAddr'>,option
 
 async function uploadProtocol(metaidData:Omit<MetaidData, 'revealAddr'>,options:CreatePinOptions = {}) {
     
-    registerProtocolRule(ProtocolCollection[NodeName.Metaprotocols].protocol, {
-        pattern: new RegExp(`/protocols/metaprotocols`, 'i'),
+    registerProtocolRule(ProtocolCollection[NodeName.MetaProtocol].protocol, {
+        pattern: new RegExp(`/protocols/metaprotocol`, 'i'),
         handler: async (metaidData) => {
-        console.log('📋 [Metaprotocols] Processing metaprotocols protocol')
+        console.log('📋 [Metaprotocols] Processing metaprotocol protocol')
         return await createPin({
         operation: metaidData.operation || 'create',
         body: metaidData.body,
-        path: metaidData.path || `/protocols/metaprotocols`,
+        path: metaidData.path || `/protocols/metaprotocol`,
         contentType: metaidData.contentType || 'application/json',
         encryption: metaidData.encryption || '0',
         version: metaidData.version || '1.0.0',
@@ -179,6 +179,41 @@ async function uploadProtocol(metaidData:Omit<MetaidData, 'revealAddr'>,options:
         return result
 }
 
+async function uploadApp(metaidData:Omit<MetaidData, 'revealAddr'>,options:CreatePinOptions = {}) {
+    
+    registerProtocolRule(ProtocolCollection[NodeName.MetaApp].protocol, {
+        pattern: new RegExp(`/protocols/metaapp`, 'i'),
+        handler: async (metaidData) => {
+  
+        return await createPin({
+        operation: metaidData.operation || 'create',
+        body: metaidData.body,
+        path: metaidData.path || `/protocols/metaapp`,
+        contentType: metaidData.contentType || 'application/json',
+        encryption: metaidData.encryption || '0',
+        version: metaidData.version || '1.0.0',
+        encoding: metaidData.encoding || 'utf-8'
+        }, metaidData.options || {})
+        },
+        description: 'Upload MetaApp',
+        defaultOptions: {
+        chain:options.chain || 'mvc',
+        network:options.network || 'mainnet',
+        signMessage: 'Upload MetaApp',
+        
+        }
+        })
+
+        const result = await buildTransaction({
+        path: metaidData.path,
+        body: JSON.stringify(metaidData.body),
+        contentType:`application/json`,
+        })
+        
+        console.log('uploadProtocol result', result)
+        return result
+}
+
 
 
 
@@ -187,6 +222,7 @@ async function uploadProtocol(metaidData:Omit<MetaidData, 'revealAddr'>,options:
             createFile,
             createPayLike,
             uploadProtocol,
+            uploadApp,
             createPayComment
         }
 
