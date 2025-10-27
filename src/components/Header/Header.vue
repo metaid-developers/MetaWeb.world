@@ -90,8 +90,8 @@ const isMobileMenuOpen = ref(false)
 
 // 导航配置
 const navItems = [
-  { name: 'MetaApp广场', path: '/metaapp', key: 'metaapp' },
-  { name: '协议广场', path: '/', key: 'protocol' },
+  { name: 'MetaApp广场', path: '/', key: 'metaapp' },
+  { name: '协议广场', path: '/metaprotocol', key: 'metaprotocol' },
   { name: '服务和工具', path: '/services', key: 'services' },
   { name: '开发MetaApp', path: '/develop', key: 'develop' },
   { name: '文档', path: '/docs', key: 'docs' },
@@ -100,9 +100,9 @@ const navItems = [
 
 // 判断导航项是否激活
 const isNavActive = (navKey: string) => {
-  if (navKey === 'protocol') {
-    // 协议广场：首页或协议详情页都激活
-    return route.path === '/' || route.path.startsWith('/protocol/')
+  if (navKey === 'metaapp') {
+   
+    return route.path === '/' || route.path.startsWith('/metaapp/')
   }
   return route.path === navItems.find(item => item.key === navKey)?.path
 }

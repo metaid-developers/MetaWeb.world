@@ -4,28 +4,27 @@ import type { RouteRecordRaw } from 'vue-router'
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    name: 'Protocol',
-    component: () => import('@/views/Protocol.vue'),
-    meta: { 
-      navKey: 'protocol'
-    }
-  },
-  {
-    path: '/protocol/:id',
-    name: 'ProtocolDetail',
-    component: () => import('@/views/ProtocolDetailView.vue'),
-    meta: { 
-      navKey: 'protocol'
-    }
-  },
-  {
-    path: '/metaapp',
     name: 'MetaApp',
-    component: () => import('@/views/MetaApp.vue'), // 临时使用相同组件
+    component: () => import('@/views/MetaApp.vue'),
     meta: { 
       navKey: 'metaapp'
     }
-  }
+  },
+   {
+    path: '/metaprotocol',
+    name: 'MetaProtocol',
+    component: () => import('@/views/Protocol.vue'), // 临时使用相同组件
+    meta: { 
+      navKey: 'metaprotocol'
+    }
+  },
+  {
+    path: '/metaprotocol/:id',
+    name: 'ProtocolDetail',
+    component: () => import('@/views/ProtocolDetailView.vue'),
+  
+  },
+ 
   // },
   // {
   //   path: '/services',
