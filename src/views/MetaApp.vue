@@ -158,13 +158,13 @@ import { useToast } from '@/components/Toast/useToast'
   .metaapp-view {
     width: 100%;
     min-height: 100vh;
-    background: #f8f9fa;
+    //background: #f8f9fa;
   }
 
   .metaapp-content {
-    max-width: 1200px;
+    max-width: 1280px;
     margin: 0 auto;
-    padding: 32px 24px;
+    padding: 32px 0px;
   }
 
   .filters-section {
