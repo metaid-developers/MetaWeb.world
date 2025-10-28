@@ -74,25 +74,24 @@ const isFormValid = computed(() => {
     formData.value.title.trim() &&
     formData.value.appName.trim() &&
     formData.value.runtime.trim() &&
-    (contentUploadRef.value && contentUploadRef.value.selectedFiles.length > 0)
+    (contentUploadRef.value && contentUploadRef.value.selectedItems.length > 0)
   )
 })
 
 // Upload single file and get metafile link
 const uploadSingleFile = async (uploadRef: any, fieldName: string): Promise<string> => {
-  if (!uploadRef?.value || uploadRef.value.selectedFiles.length === 0) {
+  if (!uploadRef?.value || uploadRef.value.selectedItems.length === 0) {
     return ''
   }
 
   try {
     showToast(`正在上传${fieldName}到链上...`, 'info')
-    const txids = await uploadRef.value.uploadFilesToChain()
-
-    if (txids.length > 0) {
-      return `metafile://${txids[0]}i0`
+    const paths = await uploadRef.value.uploadFilesToChain()
+    if (paths.length > 0) {
+      return paths[0] // 返回完整路径，如: metafile://txidi0 或 metacode://txidi0
     }
 
-    throw new Error('上传失败：未获取到交易ID')
+    throw new Error('上传失败：未获取到路径')
   } catch (error) {
     throw new Error(`${fieldName}上传失败: ${error instanceof Error ? error.message : '未知错误'}`)
   }
@@ -100,15 +99,15 @@ const uploadSingleFile = async (uploadRef: any, fieldName: string): Promise<stri
 
 // Upload multiple files and get metafile links array
 const uploadMultipleFiles = async (uploadRef: any, fieldName: string): Promise<string[]> => {
-  if (!uploadRef?.value || uploadRef.value.selectedFiles.length === 0) {
+  if (!uploadRef?.value || uploadRef.value.selectedItems.length === 0) {
     return []
   }
 
   try {
     showToast(`正在上传${fieldName}到链上...`, 'info')
-    const txids = await uploadRef.value.uploadFilesToChain()
+    const paths = await uploadRef.value.uploadFilesToChain()
 
-    return txids.map(txid => `metafile://${txid}i0`)
+    return paths // 返回完整路径数组，如: ["metafile://txid1i0", "metafile://txid2i0"]
   } catch (error) {
     throw new Error(`${fieldName}上传失败: ${error instanceof Error ? error.message : '未知错误'}`)
   }
@@ -131,7 +130,7 @@ const handleSubmit = async () => {
   }
 
   // Validate required file upload: content only
-  if (!contentUploadRef.value || contentUploadRef.value.selectedFiles.length === 0) {
+  if (!contentUploadRef.value || contentUploadRef.value.selectedItems.length === 0) {
     showToast('请上传应用内容包', 'warning')
     return
   }
@@ -309,7 +308,7 @@ const handleClose = () => {
             leave-to="opacity-0 scale-95"
           >
             <DialogPanel
-              class="w-[90vw] h-[90vh] transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all flex flex-col"
+              class="w-full max-w-[800px] h-[90vh] transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all flex flex-col"
             >
               <!-- Header -->
               <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
@@ -338,34 +337,32 @@ const handleClose = () => {
                       基础信息
                     </h4>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <!-- Title -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          标题 <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                          v-model="formData.title"
-                          type="text"
-                          class="form-input"
-                          placeholder="请输入MetaApp标题"
-                          required
-                        />
-                      </div>
+                    <!-- Title -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        标题 <span class="text-red-500">*</span>
+                      </label>
+                      <input
+                        v-model="formData.title"
+                        type="text"
+                        class="form-input"
+                        placeholder="请输入MetaApp标题"
+                        required
+                      />
+                    </div>
 
-                      <!-- App Name -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          应用名称 <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                          v-model="formData.appName"
-                          type="text"
-                          class="form-input"
-                          placeholder="请输入应用名称"
-                          required
-                        />
-                      </div>
+                    <!-- App Name -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        应用名称 <span class="text-red-500">*</span>
+                      </label>
+                      <input
+                        v-model="formData.appName"
+                        type="text"
+                        class="form-input"
+                        placeholder="请输入应用名称"
+                        required
+                      />
                     </div>
 
                     <!-- Prompt (Optional for AI-generated apps) -->
@@ -488,57 +485,55 @@ const handleClose = () => {
                       技术信息
                     </h4>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <!-- Runtime -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          运行时环境 <span class="text-red-500">*</span>
-                        </label>
-                        <select v-model="formData.runtime" class="form-input" required>
-                          <option v-for="runtime in runtimeOptions" :key="runtime.value" :value="runtime.value">
-                            {{ runtime.label }}
-                          </option>
-                        </select>
-                      </div>
+                    <!-- Runtime -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        运行时环境 <span class="text-red-500">*</span>
+                      </label>
+                      <select v-model="formData.runtime" class="form-input" required>
+                        <option v-for="runtime in runtimeOptions" :key="runtime.value" :value="runtime.value">
+                          {{ runtime.label }}
+                        </option>
+                      </select>
+                    </div>
 
-                      <!-- Index File -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          索引文件 <span class="text-gray-400 text-xs">(可选)</span>
-                        </label>
-                        <input
-                          v-model="formData.indexFile"
-                          type="text"
-                          class="form-input"
-                          placeholder="例如: index.html"
-                        />
-                      </div>
+                    <!-- Index File -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        索引文件 <span class="text-gray-400 text-xs">(可选)</span>
+                      </label>
+                      <input
+                        v-model="formData.indexFile"
+                        type="text"
+                        class="form-input"
+                        placeholder="例如: index.html"
+                      />
+                    </div>
 
-                      <!-- Version -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          版本号
-                        </label>
-                        <input
-                          v-model="formData.version"
-                          type="text"
-                          class="form-input"
-                          placeholder="v1.0.1"
-                        />
-                      </div>
+                    <!-- Version -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        版本号
+                      </label>
+                      <input
+                        v-model="formData.version"
+                        type="text"
+                        class="form-input"
+                        placeholder="v1.0.1"
+                      />
+                    </div>
 
-                      <!-- Content Type -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          内容类型
-                        </label>
-                        <input
-                          v-model="formData.contentType"
-                          type="text"
-                          class="form-input"
-                          placeholder="application/zip"
-                        />
-                      </div>
+                    <!-- Content Type -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        内容类型
+                      </label>
+                      <input
+                        v-model="formData.contentType"
+                        type="text"
+                        class="form-input"
+                        placeholder="application/zip"
+                      />
                     </div>
 
                     <!-- Content Hash (Optional) -->

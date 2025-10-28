@@ -1,5 +1,6 @@
-
-
+import { type AttachmentItem } from "@/@types/common";
+import { useChainStore } from '@/stores/chain';
+import { OutputSize, BaseSize, InputSize, OpReturnOverhead } from '@/data/constants';
 export function sleep(timer = 2000) {
   return new Promise<void>(resolve => {
     setTimeout(() => {
@@ -61,4 +62,39 @@ export function hexToUint8Array(hexString: string) {
   }
 
   return array
+}
+
+export async function estimateUploadFee(file:AttachmentItem) {
+   const chainStore=useChainStore()
+ 
+    
+    // 文件大小
+    const fileSize = file.size;
+    
+    // 计算 OP_RETURN 输出大小
+    // MetaID 协议：metaid + operation + path + encryption + version + contentType + content
+    const path = '/file';
+    const fileHost = '';
+    const finalPath = fileHost ? fileHost + ':' + path : path;
+    
+    const metadataSize = 6 + 10 + finalPath.length + 10 + 10 + 50; // 粗略估算
+    const opReturnSize = OpReturnOverhead + metadataSize + fileSize;
+    
+    // 总交易大小估算（1个输入，2个输出：找零 + OP_RETURN）
+    const estimatedTxSize = BaseSize + InputSize + OutputSize * 2 + opReturnSize;
+    
+    // 获取费率
+    const feeRate = chainStore.mvcFeeRate() || 1;
+    
+    // 计算费用
+    const estimatedFee = Math.ceil(estimatedTxSize * feeRate);
+    
+    // 添加安全边际（20%）
+    const feeWithMargin = Math.ceil(estimatedFee * 1.2);
+    
+    console.log('预估交易大小:', estimatedTxSize, 'bytes');
+    console.log('费率:', feeRate, 'sat/byte');
+    console.log('预估费用（含20%边际）:', feeWithMargin, 'satoshis');
+    
+    return feeWithMargin;
 }

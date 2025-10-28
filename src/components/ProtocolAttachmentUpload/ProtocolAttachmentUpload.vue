@@ -1,7 +1,34 @@
 <template>
   <div class="protocol-attachment-upload">
+    <!-- 模式切换 -->
+    <div class="mode-toggle">
+      <button
+        type="button"
+        :class="{ active: inputMode === 'file' }"
+        @click="inputMode = 'file'"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        上传文件
+      </button>
+      <button
+        type="button"
+        :class="{ active: inputMode === 'txid' }"
+        @click="inputMode = 'txid'"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M11 4H4C3.45 4 3 4.45 3 5V19C3 19.55 3.45 20 4 20H18C18.55 20 19 19.55 19 19V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        手动输入TXID
+      </button>
+    </div>
+
     <!-- 上传区域 -->
-    <div 
+    <div
+      v-if="inputMode === 'file'"
       class="upload-area"
       :class="{ 'drag-over': isDragOver }"
       @click="triggerFileInput"
@@ -19,7 +46,7 @@
             <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        
+
         <div class="upload-text">
           <h4>点击选择文件或拖拽文件到此处</h4>
           <p class="file-types">支持任意类型文件</p>
@@ -27,7 +54,7 @@
           <p class="upload-note">文件将在提交协议时上传到链上</p>
         </div>
       </div>
-      
+
       <input
         ref="fileInput"
         type="file"
@@ -38,111 +65,160 @@
       />
     </div>
 
-    <!-- 已选择文件列表 -->
-    <div class="selected-files" v-if="selectedFiles.length > 0">
+    <!-- TXID输入区域 -->
+    <div v-if="inputMode === 'txid'" class="txid-input-area">
+      <div class="txid-input-wrapper">
+        <div class="prefix-selector">
+          <select v-model="selectedPrefix">
+            <option value="metafile://">metafile://</option>
+            <option value="metacode://">metacode://</option>
+          </select>
+        </div>
+        <input
+          v-model="txidInput"
+          type="text"
+          class="txid-input"
+          placeholder="请输入txid（如：9efda111d8...）"
+          @keyup.enter="addTxidItem"
+        />
+        <button type="button" class="add-txid-btn" @click="addTxidItem">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          添加
+        </button>
+      </div>
+      <p class="txid-hint">输入完整的txid，系统将自动生成格式如：metafile://9efda111d8...i0</p>
+    </div>
+
+    <!-- 已选择附件列表 -->
+    <div class="selected-files" v-if="selectedItems.length > 0">
       <div class="files-header">
         <h5 class="files-title">已选择的协议附件</h5>
-        <span class="files-count">{{ selectedFiles.length }} 个文件</span>
+        <span class="files-count">{{ selectedItems.length }} 个附件</span>
       </div>
-      
+
       <div class="files-grid">
-        <div 
-          v-for="(file, index) in selectedFiles" 
-          :key="index" 
+        <div
+          v-for="(item, index) in selectedItems"
+          :key="index"
           class="file-card"
         >
-          <div class="file-preview">
-            <!-- 图片预览 -->
-            <div v-if="isImageFile(file.type) && file.preview" class="image-preview">
-              <img :src="file.preview" :alt="file.name" />
-            </div>
-            
-            <!-- 视频预览 -->
-            <div v-else-if="isVideoFile(file.type) && file.preview" class="video-preview">
-              <img :src="file.preview" :alt="file.name" />
-              <div class="video-overlay">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M23 7L16 12L23 17V7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- TXID类型附件 -->
+          <template v-if="item.type === 'txid'">
+            <div class="file-preview">
+              <div class="file-icon txid-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </div>
             </div>
-            
-            <!-- PDF文件图标 -->
-            <div v-else-if="isPdfFile(file.type)" class="file-icon pdf-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+
+            <div class="file-info">
+              <div class="file-name" :title="item.fullPath">{{ item.fullPath }}</div>
+              <div class="file-meta">
+                <span class="file-type">TXID引用</span>
+              </div>
             </div>
-            
-            <!-- 办公文档图标 -->
-            <div v-else-if="isOfficeFile(file.type)" class="file-icon office-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+          </template>
+
+          <!-- 文件类型附件 -->
+          <template v-else>
+            <div class="file-preview">
+              <!-- 图片预览 -->
+              <div v-if="isImageFile(item.fileType) && item.preview" class="image-preview">
+                <img :src="item.preview" :alt="item.name" />
+              </div>
+
+              <!-- 视频预览 -->
+              <div v-else-if="isVideoFile(item.fileType) && item.preview" class="video-preview">
+                <img :src="item.preview" :alt="item.name" />
+                <div class="video-overlay">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M23 7L16 12L23 17V7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+
+              <!-- PDF文件图标 -->
+              <div v-else-if="isPdfFile(item.fileType)" class="file-icon pdf-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+
+              <!-- 办公文档图标 -->
+              <div v-else-if="isOfficeFile(item.fileType)" class="file-icon office-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+
+              <!-- 压缩包图标 -->
+              <div v-else-if="isZipFile(item.fileType)" class="file-icon zip-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M21 16V8C21 6.9 20.1 6 19 6H5C3.9 6 3 6.9 3 8V16C3 17.1 3.9 18 5 18H19C20.1 18 21 17.1 21 16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M7 10H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M7 14H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+
+              <!-- 文本文件图标 -->
+              <div v-else-if="isTextFile(item.fileType)" class="file-icon text-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+
+              <!-- 音频文件图标 -->
+              <div v-else-if="isAudioFile(item.fileType)" class="file-icon audio-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 18V5L21 3V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M6 15C7.66 15 9 13.66 9 12C9 10.34 7.66 9 6 9C4.34 9 3 10.34 3 12C3 13.66 4.34 15 6 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M18 15C19.66 15 21 13.66 21 12C21 10.34 19.66 9 18 9C16.34 9 15 10.34 15 12C15 13.66 16.34 15 18 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+
+              <!-- 默认文件图标 -->
+              <div v-else class="file-icon default-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
             </div>
-            
-            <!-- 压缩包图标 -->
-            <div v-else-if="isZipFile(file.type)" class="file-icon zip-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <path d="M21 16V8C21 6.9 20.1 6 19 6H5C3.9 6 3 6.9 3 8V16C3 17.1 3.9 18 5 18H19C20.1 18 21 17.1 21 16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 10H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 14H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+
+            <div class="file-info">
+              <div class="file-name" :title="item.name">{{ item.name }}</div>
+              <div class="file-meta">
+                <span class="file-size">{{ formatFileSize(item.size) }}</span>
+                <span class="file-type">{{ getFileTypeLabel(item.fileType) }}</span>
+              </div>
             </div>
-            
-            <!-- 文本文件图标 -->
-            <div v-else-if="isTextFile(file.type)" class="file-icon text-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            
-            <!-- 音频文件图标 -->
-            <div v-else-if="isAudioFile(file.type)" class="file-icon audio-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <path d="M9 18V5L21 3V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6 15C7.66 15 9 13.66 9 12C9 10.34 7.66 9 6 9C4.34 9 3 10.34 3 12C3 13.66 4.34 15 6 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M18 15C19.66 15 21 13.66 21 12C21 10.34 19.66 9 18 9C16.34 9 15 10.34 15 12C15 13.66 16.34 15 18 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            
-            <!-- 默认文件图标 -->
-            <div v-else class="file-icon default-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-          </div>
-          
-          <div class="file-info">
-            <div class="file-name" :title="file.name">{{ file.name }}</div>
-            <div class="file-meta">
-              <span class="file-size">{{ formatFileSize(file.size) }}</span>
-              <span class="file-type">{{ getFileTypeLabel(file.type) }}</span>
-            </div>
-          </div>
-          
-          <button 
+          </template>
+
+          <button
+            type="button"
             class="remove-btn"
-            @click="removeFile(index)"
-            title="移除文件"
+            @click="removeItem(index)"
+            title="移除附件"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -153,21 +229,21 @@
       </div>
       
       <div class="file-actions">
-        <button class="clear-all-btn" @click="clearAllFiles" v-if="selectedFiles.length > 0">
+        <button type="button" class="clear-all-btn" @click="clearAllItems" v-if="selectedItems.length > 0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M8 6V4C8 3.45 8.45 3 9 3H15C15.55 3 16 3.45 16 4V6M19 6V20C19 20.55 18.55 21 18 21H6C5.45 21 5 20.55 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M10 11V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M14 11V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          清空所有文件
+          清空所有附件
         </button>
-        <button class="add-more-btn" @click="triggerFileInput">
+        <button type="button" class="add-more-btn" @click="inputMode === 'file' ? triggerFileInput() : null">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          添加更多文件
+          添加更多附件
         </button>
       </div>
     </div>
@@ -180,14 +256,25 @@ import { FileToAttachmentItem, IsEncrypt } from '@/lib/file'
 import { useCreateProtocols } from '@/hooks/use-create-protocols'
 import { useToast } from '@/components/Toast/useToast'
 import { TxComposer } from 'meta-contract'
+
 // 定义接口
-interface SelectedFile {
+interface SelectedFileItem {
+  type: 'file'
   file: File
   name: string
   size: number
-  type: string
-  preview?: string // 添加预览字段
+  fileType: string
+  preview?: string
 }
+
+interface SelectedTxidItem {
+  type: 'txid'
+  prefix: string
+  txid: string
+  fullPath: string
+}
+
+type SelectedItem = SelectedFileItem | SelectedTxidItem
 
 // Props
 interface Props {
@@ -202,14 +289,18 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Emits
 const emit = defineEmits<{
-  'files-selected': [files: SelectedFile[]]
-  'files-removed': [files: SelectedFile[]]
+  'items-selected': [items: SelectedItem[]]
+  'items-removed': [items: SelectedItem[]]
 }>()
 
 // 响应式数据
-const selectedFiles = ref<SelectedFile[]>([])
+const selectedItems = ref<SelectedItem[]>([])
+const selectedFiles = ref<SelectedFileItem[]>([]) // 保留用于向后兼容
 const isDragOver = ref(false)
 const fileInput = ref<HTMLInputElement>()
+const inputMode = ref<'file' | 'txid'>('file')
+const selectedPrefix = ref<string>('metafile://')
+const txidInput = ref<string>('')
 
 // 使用hooks
 const { createFile } = useCreateProtocols()
@@ -326,100 +417,154 @@ const generateFilePreview = async (file: File): Promise<string | null> => {
   }
 }
 
+// 添加TXID项
+const addTxidItem = () => {
+  const txid = txidInput.value.trim()
+  if (!txid) {
+    showToast('请输入txid', 'warning')
+    return
+  }
+
+  // 检查是否超过最大数量
+  if (selectedItems.value.length >= props.maxFiles) {
+    showToast(`最多只能添加 ${props.maxFiles} 个附件`, 'warning')
+    return
+  }
+
+  // 构建完整路径: prefix + txid，如果txid不以i0结尾，则添加i0
+  let fullPath: string
+  if (txid.endsWith('i0')) {
+    fullPath = `${selectedPrefix.value}${txid}`
+  } else {
+    fullPath = `${selectedPrefix.value}${txid}i0`
+  }
+
+  // 检查是否已存在相同的txid
+  const exists = selectedItems.value.some(
+    item => item.type === 'txid' && item.fullPath === fullPath
+  )
+
+  if (exists) {
+    showToast('该TXID已存在', 'warning')
+    return
+  }
+
+  // 创建txid项
+  const txidItem: SelectedTxidItem = {
+    type: 'txid',
+    prefix: selectedPrefix.value,
+    txid,
+    fullPath
+  }
+
+  selectedItems.value.push(txidItem)
+  emit('items-selected', [txidItem])
+
+  // 清空输入
+  txidInput.value = ''
+
+  showToast('已添加TXID引用', 'success')
+}
+
 // 上传文件到链上（供外部调用）
 const uploadFilesToChain = async (_options?:CreatePinOptions={}): Promise<string[]> => {
   const txids: string[] = []
 
-  
-  for (const selectedFile of selectedFiles.value) {
-    try {
-      // 1. 将文件转换为AttachmentItem
-      const attachmentItem = await FileToAttachmentItem(selectedFile.file, IsEncrypt.No)
-      
-      // 2. 构建metaidData
-      const metaidData = {
-        path: '/file',
-        body: attachmentItem.data,
-        contentType: `${attachmentItem.fileType};binary`,
-        encoding: 'binary' as const,
-        version: '1.0.0',
-        operation: 'create' as const
+  for (const item of selectedItems.value) {
+    if (item.type === 'txid') {
+      // TXID类型：直接使用txid，不需要上传
+      txids.push(item.fullPath)
+    } else {
+      // 文件类型：需要上传到链上
+      try {
+        // 1. 将文件转换为AttachmentItem
+        const attachmentItem = await FileToAttachmentItem(item.file, IsEncrypt.No)
+
+        // 2. 构建metaidData
+        const metaidData = {
+          path: '/file',
+          body: attachmentItem.data,
+          contentType: `${attachmentItem.fileType};binary`,
+          encoding: 'binary' as const,
+          version: '1.0.0',
+          operation: 'create' as const
+        }
+
+        // 3. 构建options
+        const options = {
+          attachments: [attachmentItem],
+          mime: attachmentItem.fileType,
+          chain: 'mvc' as const,
+          network: 'mainnet' as const,
+          ..._options
+        }
+
+        // 4. 调用createFile方法上传到链上
+        const result = await createFile(metaidData, options)
+
+        const txid = result?.txid || result?.txids?.[0]
+        if (!txid) {
+          throw new Error('上传失败：未获取到交易ID')
+        }
+
+        txids.push(`metafile://${txid}i0`)
+      } catch (error) {
+        console.error(`文件 "${item.name}" 上传失败:`, error)
+        throw new Error(`文件 "${item.name}" 上传失败: ${error instanceof Error ? error.message : '未知错误'}`)
       }
-      
-      // 3. 构建options
-      const options = {
-        attachments: [attachmentItem],
-        mime: attachmentItem.fileType,
-        chain: 'mvc' as const,
-        network: 'mainnet' as const,
-        ..._options
-      }
-      
-      // 4. 调用createFile方法上传到链上
-      const result = await createFile(metaidData, options)
-      
-      const txid = result?.txid || result?.txids?.[0]
-      if (!txid) {
-        throw new Error('上传失败：未获取到交易ID')
-      }
-      
-      txids.push(txid)
-      // 5. 提取txid
-    
-    } catch (error) {
-      console.error(`文件 "${selectedFile.name}" 上传失败:`, error)
-      throw new Error(`文件 "${selectedFile.name}" 上传失败: ${error instanceof Error ? error.message : '未知错误'}`)
     }
   }
-  
-  return  txids
+
+  return txids
 }
 
 // 处理文件选择
 const processFiles = async (files: FileList) => {
-  const newFiles: SelectedFile[] = []
-  
+  const newItems: SelectedFileItem[] = []
+
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
-    
+
     // 验证文件
     const error = validateFile(file)
     if (error) {
       showToast(error, 'warning')
       continue
     }
-    
-    // 检查是否超过最大文件数量
-    if (selectedFiles.value.length + newFiles.length >= props.maxFiles) {
-      showToast(`最多只能选择 ${props.maxFiles} 个文件`, 'warning')
+
+    // 检查是否超过最大附件数量
+    if (selectedItems.value.length + newItems.length >= props.maxFiles) {
+      showToast(`最多只能添加 ${props.maxFiles} 个附件`, 'warning')
       break
     }
-    
+
     // 创建文件项
-    const fileItem: SelectedFile = {
+    const fileItem: SelectedFileItem = {
+      type: 'file',
       file,
       name: file.name,
       size: file.size,
-      type: file.type
+      fileType: file.type
     }
-    
+
     // 生成预览
     const preview = await generateFilePreview(file)
     if (preview) {
       fileItem.preview = preview
     }
-    
-    newFiles.push(fileItem)
+
+    newItems.push(fileItem)
   }
-  
-  // 添加到已选文件列表
-  selectedFiles.value.push(...newFiles)
-  
+
+  // 添加到已选附件列表
+  selectedItems.value.push(...newItems)
+  selectedFiles.value.push(...newItems) // 保持向后兼容
+
   // 触发事件
-  emit('files-selected', newFiles)
-  
-  if (newFiles.length > 0) {
-    showToast(`已选择 ${newFiles.length} 个文件`, 'success')
+  emit('items-selected', newItems)
+
+  if (newItems.length > 0) {
+    showToast(`已选择 ${newItems.length} 个文件`, 'success')
   }
 }
 
@@ -457,25 +602,42 @@ const handleDrop = (event: DragEvent) => {
   }
 }
 
-// 移除文件
-const removeFile = (index: number) => {
-  const removedFile = selectedFiles.value[index]
-  selectedFiles.value.splice(index, 1)
-  emit('files-removed', [removedFile])
-  showToast(`已移除文件 "${removedFile.name}"`, 'info')
+// 移除附件
+const removeItem = (index: number) => {
+  const removedItem = selectedItems.value[index]
+  selectedItems.value.splice(index, 1)
+
+  // 同步更新 selectedFiles（向后兼容）
+  if (removedItem.type === 'file') {
+    const fileIndex = selectedFiles.value.findIndex(f => f.file === removedItem.file)
+    if (fileIndex !== -1) {
+      selectedFiles.value.splice(fileIndex, 1)
+    }
+  }
+
+  emit('items-removed', [removedItem])
+
+  const itemName = removedItem.type === 'txid' ? removedItem.fullPath : removedItem.name
+  showToast(`已移除附件 "${itemName}"`, 'info')
 }
 
-// 清空所有文件
-const clearAllFiles = () => {
-  const removedFiles = [...selectedFiles.value]
+// 清空所有附件
+const clearAllItems = () => {
+  const removedItems = [...selectedItems.value]
+  selectedItems.value = []
   selectedFiles.value = []
-  emit('files-removed', removedFiles)
-  showToast('已清空所有文件', 'info')
+  emit('items-removed', removedItems)
+  showToast('已清空所有附件', 'info')
 }
 
-// 获取选中的文件列表
+// 保留旧方法名以向后兼容
+const clearAllFiles = clearAllItems
+
+// 获取选中的文件列表（仅返回文件类型）
 const getSelectedFiles = () => {
-  return selectedFiles.value.map(item => item.file)
+  return selectedItems.value
+    .filter((item): item is SelectedFileItem => item.type === 'file')
+    .map(item => item.file)
 }
 
 // 暴露方法给父组件
@@ -483,12 +645,153 @@ defineExpose({
   uploadFilesToChain,
   getSelectedFiles,
   clearFiles: clearAllFiles,
-  selectedFiles: computed(() => selectedFiles.value)
+  clearAllItems,
+  selectedFiles: computed(() => selectedFiles.value),
+  selectedItems: computed(() => selectedItems.value)
 })
 </script>
 
 <style lang="scss" scoped>
 .protocol-attachment-upload {
+  // 模式切换按钮
+  .mode-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 4px;
+    background: #f3f4f6;
+    border-radius: 8px;
+
+    button {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #6b7280;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        color: #374151;
+        background: rgba(255, 255, 255, 0.6);
+      }
+
+      &.active {
+        color: #3b82f6;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+
+      svg {
+        flex-shrink: 0;
+      }
+    }
+  }
+
+  // TXID输入区域
+  .txid-input-area {
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    padding: 24px;
+    background: #f9fafb;
+
+    .txid-input-wrapper {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      .prefix-selector {
+        select {
+          height: 42px;
+          padding: 0 12px;
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
+          font-size: 14px;
+          color: #374151;
+          background: #ffffff;
+          cursor: pointer;
+          transition: all 0.2s ease;
+
+          &:hover {
+            border-color: #3b82f6;
+          }
+
+          &:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+          }
+        }
+      }
+
+      .txid-input {
+        flex: 1;
+        height: 42px;
+        padding: 0 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        color: #374151;
+        background: #ffffff;
+        transition: all 0.2s ease;
+
+        &::placeholder {
+          color: #9ca3af;
+        }
+
+        &:hover {
+          border-color: #3b82f6;
+        }
+
+        &:focus {
+          outline: none;
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+      }
+
+      .add-txid-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 42px;
+        padding: 0 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #ffffff;
+        background: #3b82f6;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: #2563eb;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        &:active {
+          transform: translateY(0);
+        }
+      }
+    }
+
+    .txid-hint {
+      margin: 0;
+      font-size: 13px;
+      color: #6b7280;
+      text-align: center;
+    }
+  }
+
   .upload-area {
     border: 2px dashed #d1d5db;
     border-radius: 8px;
@@ -652,35 +955,43 @@ defineExpose({
           height: 100%;
           color: #6b7280;
           transition: color 0.2s ease;
-          
+
+          &.txid-icon {
+            color: #f59e0b;
+          }
+
           &.pdf-icon {
             color: #dc2626;
           }
-          
+
           &.office-icon {
             color: #2563eb;
           }
-          
+
           &.zip-icon {
             color: #059669;
           }
-          
+
           &.text-icon {
             color: #7c3aed;
           }
-          
+
           &.audio-icon {
             color: #ea580c;
           }
-          
+
           &.default-icon {
             color: #6b7280;
           }
         }
       }
-      
+
       &:hover .file-preview .file-icon {
         color: #3b82f6;
+      }
+
+      &:hover .file-preview .file-icon.txid-icon {
+        color: #f59e0b;
       }
       
       .file-info {

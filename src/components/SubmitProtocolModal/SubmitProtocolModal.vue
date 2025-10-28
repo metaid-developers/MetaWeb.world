@@ -346,21 +346,21 @@ const handleSubmit = async () => {
   try {
     isSubmitting.value = true
 
-    // 先上传文件到链上获取txid
+    // 先上传文件到链上获取路径
     let parsedAttachments: string[] = []
-    if (attachmentUploadRef.value && attachmentUploadRef.value.selectedFiles.length > 0) {
-      showToast('正在上传文件到链上...', 'info')
-      
+    if (attachmentUploadRef.value && attachmentUploadRef.value.selectedItems.length > 0) {
+      showToast('正在上传附件到链上...', 'info')
+
       try {
         // 调用附件上传组件的上传方法
-        const txids = await attachmentUploadRef.value.uploadFilesToChain()
-        
-        // 将txid转换为metafile链接格式
-        parsedAttachments = txids.map(txid => `metafile://${txid}i0`)
-        
-        showToast(`文件上传成功，共 ${txids.length} 个文件`, 'success')
+        const paths = await attachmentUploadRef.value.uploadFilesToChain()
+
+        // paths 已经是完整路径格式，如: ["metafile://txidi0", "metacode://txidi0"]
+        parsedAttachments = paths
+
+        showToast(`附件处理成功，共 ${paths.length} 个附件`, 'success')
       } catch (error) {
-        showToast(`文件上传失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error')
+        showToast(`附件处理失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error')
         return
       }
     }
@@ -508,7 +508,7 @@ const getPlaceholder = (type: string) => {
             leave-to="opacity-0 scale-95"
           >
             <DialogPanel
-              class="w-[90vw] h-[90vh] transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all flex flex-col"
+              class="w-full max-w-[800px] h-[90vh] transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all flex flex-col"
             >
               <!-- Header -->
               <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
@@ -537,128 +537,123 @@ const getPlaceholder = (type: string) => {
                       协议基础信息
                     </h4>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <!-- Title -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          标题 <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                          v-model="formData.title"
-                          type="text"
-                          class="form-input"
-                          placeholder="请输入协议标题"
-                          required
-                        />
-                      </div>
-
-                      <!-- Protocol Name -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          协议名称 <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                          v-model="formData.protocolName"
-                          type="text"
-                          class="form-input"
-                          placeholder="例如: myprotocol"
-                          required
-                        />
-                      </div>
+                    <!-- Title -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        标题 <span class="text-red-500">*</span>
+                      </label>
+                      <input
+                        v-model="formData.title"
+                        type="text"
+                        class="form-input"
+                        placeholder="请输入协议标题"
+                        required
+                      />
                     </div>
 
-                    <!-- 第二行：版本号、协议主体类型、编码格式 -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                      <!-- Version -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          版本号
-                        </label>
-                        <input
-                          v-model="formData.version"
-                          type="text"
-                          class="form-input"
-                          placeholder="1.0.0"
-                        />
-                      </div>
+                    <!-- Protocol Name -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        协议名称 <span class="text-red-500">*</span>
+                      </label>
+                      <input
+                        v-model="formData.protocolName"
+                        type="text"
+                        class="form-input"
+                        placeholder="例如: myprotocol"
+                        required
+                      />
+                    </div>
 
-                      <!-- Protocol Content Type -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          协议主体类型
-                        </label>
-                        <Listbox v-model="formData.protocolContentType">
-                          <div class="relative">
-                            <ListboxButton class="form-select">
-                              <span class="block truncate">{{ formData.protocolContentType.label }}</span>
-                              <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                                <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                </svg>
-                              </span>
-                            </ListboxButton>
-                            <transition
-                              leave-active-class="transition duration-100 ease-in"
-                              leave-from-class="opacity-100"
-                              leave-to-class="opacity-0"
-                            >
-                              <ListboxOptions class="select-options">
-                                <ListboxOption
-                                  v-for="type in mimeTypes"
-                                  :key="type.value"
-                                  :value="type"
-                                  v-slot="{ active, selected }"
-                                >
-                                  <li :class="[active ? 'bg-purple-100' : '', 'select-option']">
-                                    <span :class="[selected ? 'font-semibold' : 'font-normal', 'block truncate']">
-                                      {{ type.label }}
-                                    </span>
-                                  </li>
-                                </ListboxOption>
-                              </ListboxOptions>
-                            </transition>
-                          </div>
-                        </Listbox>
-                      </div>
+                    <!-- Version -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        版本号
+                      </label>
+                      <input
+                        v-model="formData.version"
+                        type="text"
+                        class="form-input"
+                        placeholder="1.0.0"
+                      />
+                    </div>
 
-                      <!-- Protocol Encoding -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          编码格式
-                        </label>
-                        <Listbox v-model="formData.protocolEncoding">
-                          <div class="relative">
-                            <ListboxButton class="form-select">
-                              <span class="block truncate">{{ formData.protocolEncoding.label }}</span>
-                              <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                                <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                </svg>
-                              </span>
-                            </ListboxButton>
-                            <transition
-                              leave-active-class="transition duration-100 ease-in"
-                              leave-from-class="opacity-100"
-                              leave-to-class="opacity-0"
-                            >
-                              <ListboxOptions class="select-options">
-                                <ListboxOption
-                                  v-for="encoding in encodingTypes"
-                                  :key="encoding.value"
-                                  :value="encoding"
-                                  v-slot="{ active, selected }"
-                                >
-                                  <li :class="[active ? 'bg-purple-100' : '', 'select-option']">
-                                    <span :class="[selected ? 'font-semibold' : 'font-normal', 'block truncate']">
-                                      {{ encoding.label }}
-                                    </span>
-                                  </li>
-                                </ListboxOption>
-                              </ListboxOptions>
-                            </transition>
-                          </div>
-                        </Listbox>
-                      </div>
+                    <!-- Protocol Content Type -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        协议主体类型
+                      </label>
+                      <Listbox v-model="formData.protocolContentType">
+                        <div class="relative">
+                          <ListboxButton class="form-select">
+                            <span class="block truncate">{{ formData.protocolContentType.label }}</span>
+                            <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                              <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                              </svg>
+                            </span>
+                          </ListboxButton>
+                          <transition
+                            leave-active-class="transition duration-100 ease-in"
+                            leave-from-class="opacity-100"
+                            leave-to-class="opacity-0"
+                          >
+                            <ListboxOptions class="select-options">
+                              <ListboxOption
+                                v-for="type in mimeTypes"
+                                :key="type.value"
+                                :value="type"
+                                v-slot="{ active, selected }"
+                              >
+                                <li :class="[active ? 'bg-purple-100' : '', 'select-option']">
+                                  <span :class="[selected ? 'font-semibold' : 'font-normal', 'block truncate']">
+                                    {{ type.label }}
+                                  </span>
+                                </li>
+                              </ListboxOption>
+                            </ListboxOptions>
+                          </transition>
+                        </div>
+                      </Listbox>
+                    </div>
+
+                    <!-- Protocol Encoding -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        编码格式
+                      </label>
+                      <Listbox v-model="formData.protocolEncoding">
+                        <div class="relative">
+                          <ListboxButton class="form-select">
+                            <span class="block truncate">{{ formData.protocolEncoding.label }}</span>
+                            <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                              <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                              </svg>
+                            </span>
+                          </ListboxButton>
+                          <transition
+                            leave-active-class="transition duration-100 ease-in"
+                            leave-from-class="opacity-100"
+                            leave-to-class="opacity-0"
+                          >
+                            <ListboxOptions class="select-options">
+                              <ListboxOption
+                                v-for="encoding in encodingTypes"
+                                :key="encoding.value"
+                                :value="encoding"
+                                v-slot="{ active, selected }"
+                              >
+                                <li :class="[active ? 'bg-purple-100' : '', 'select-option']">
+                                  <span :class="[selected ? 'font-semibold' : 'font-normal', 'block truncate']">
+                                    {{ encoding.label }}
+                                  </span>
+                                </li>
+                              </ListboxOption>
+                            </ListboxOptions>
+                          </transition>
+                        </div>
+                      </Listbox>
                     </div>
 
                     <!-- 协议可选信息 -->
@@ -685,13 +680,13 @@ const getPlaceholder = (type: string) => {
                         <label class="form-label">
                           协议附件 (Protocol Attachments)
                         </label>
-                        <ProtocolAttachmentUpload 
+                        <ProtocolAttachmentUpload
                           ref="attachmentUploadRef"
-                          @files-selected="handleFilesSelected"
-                          @files-removed="handleFilesRemoved"
+                          @items-selected="handleFilesSelected"
+                          @items-removed="handleFilesRemoved"
                         />
                         <p class="text-xs text-gray-500 mt-1">
-                          支持任意类型文件，单个文件大小限制1MB，文件将在提交协议时上传到链上
+                          支持文件上传或手动输入TXID，单个文件大小限制1MB，文件将在提交协议时上传到链上
                         </p>
                       </div>
 
@@ -760,7 +755,7 @@ const getPlaceholder = (type: string) => {
                           </button>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-4">
                           <div class="form-item">
                             <label class="form-label-sm">Key <span class="text-red-500">*</span></label>
                             <input
@@ -784,7 +779,7 @@ const getPlaceholder = (type: string) => {
                             </p>
                           </div>
 
-                          <div class="form-item md:col-span-2">
+                          <div class="form-item">
                             <label class="form-label-sm">Value <span class="text-red-500">*</span></label>
                             <textarea
                               v-model="item.value"
@@ -794,7 +789,7 @@ const getPlaceholder = (type: string) => {
                             ></textarea>
                           </div>
 
-                          <div class="form-item md:col-span-2">
+                          <div class="form-item">
                             <label class="form-label-sm">描述 (Description)</label>
                             <input
                               v-model="item.description"
