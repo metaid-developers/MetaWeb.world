@@ -58,11 +58,6 @@ const userStore=useUserStore()
 const { showToast } = useToast()
 
 const protocols: Ref<Protocol[]> = ref([
-  {
-    id: 1,
-    title: '简单测试协议',
-    description: `这是一个简单的测试协议，用于测试协议的创建和显示。`
-  },
 
 ])
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot, Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { useCreateProtocols } from '@/hooks/use-create-protocols'
 import { useToast } from '@/components/Toast/useToast'
@@ -97,22 +97,32 @@ const isFormValid = computed(() => {
   for (const item of metaDataItems.value) {
     // Key 不能为空
     if (!item.key.trim()) return false
-    // Value 不能为空
-    if (!item.value.trim()) return false
+    // Value 已改为非必填，不再验证
   }
 
   return true
 })
 
 // 添加新的MetaData项
-const addMetaDataItem = () => {
+const addMetaDataItem = async () => {
+  const newId = nextId.value++
   metaDataItems.value.push({
-    id: nextId.value++,
+    id: newId,
     key: '',
     valueType: 'String',
     value: '',
     description: ''
   })
+
+  // 等待 DOM 更新后滚动到新添加的元素
+  await nextTick()
+  const newElement = document.querySelector(`[data-item-id="${newId}"]`)
+  if (newElement) {
+    newElement.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    })
+  }
 }
 
 // 删除MetaData项
@@ -134,6 +144,22 @@ const handleFilesRemoved = (files: any[]) => {
 
 // 解析值根据类型
 const parseValue = (value: string, type: string): any => {
+  // 如果 value 为空，根据类型返回默认值
+  if (!value || !value.trim()) {
+    switch (type) {
+      case 'String':
+        return ''
+      case 'Number':
+        return 0
+      case 'Object':
+        return {}
+      case 'Array':
+        return []
+      default:
+        return ''
+    }
+  }
+
   try {
     switch (type) {
       case 'Number':
@@ -331,16 +357,13 @@ const handleSubmit = async () => {
     return
   }
 
-  // 验证MetaData
+  // 验证Body
   for (const item of metaDataItems.value) {
     if (!item.key.trim()) {
-      showToast('请填写所有MetaData项的Key', 'warning')
+      showToast('请填写所有Body项的Key', 'warning')
       return
     }
-    if (!item.value.trim()) {
-      showToast('请填写所有MetaData项的Value', 'warning')
-      return
-    }
+    // Value 已改为非必填，不再验证
   }
 
   try {
@@ -380,7 +403,7 @@ const handleSubmit = async () => {
     const protocolContent = generateJSON5WithComments()
     
     const metaidData = {
-      path: `/protocols/metaprotocol`,
+      path: `/protocols/testmetaprotocol`,
       body: {
         title: formData.value.title,
         path:`/protocols/${formData.value.protocolName.trim().toLocaleLowerCase()}`,
@@ -739,6 +762,7 @@ const getPlaceholder = (type: string) => {
                       <div
                         v-for="(item, index) in metaDataItems"
                         :key="item.id"
+                        :data-item-id="item.id"
                         class="metadata-item"
                       >
                         <div class="flex items-center justify-between mb-3">
@@ -780,13 +804,16 @@ const getPlaceholder = (type: string) => {
                           </div>
 
                           <div class="form-item">
-                            <label class="form-label-sm">Value <span class="text-red-500">*</span></label>
+                            <label class="form-label-sm">Value</label>
                             <textarea
                               v-model="item.value"
                               class="form-textarea-sm"
                               :placeholder="getPlaceholder(item.valueType)"
                               rows="3"
                             ></textarea>
+                            <p class="text-xs text-gray-500 mt-1">
+                              可选字段。不填写时根据类型使用默认值：String(""), Number(0), Object({}), Array([])
+                            </p>
                           </div>
 
                           <div class="form-item">

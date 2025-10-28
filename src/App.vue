@@ -21,9 +21,11 @@
   </div>
 </template>
 <script setup lang='ts'>
-import { ref } from 'vue'
+import { ref,onMounted } from 'vue'
 import Header from '@/components/Header/Header.vue'
 import ConnectWalletModalVue from '@/components/ConnectWalletModal/ConnectWalletModal.vue'
+import {getPinListByPath} from "@/api/ManV2";
+
 
 
 

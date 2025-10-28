@@ -47,9 +47,9 @@
         </div>
 
         <!-- App Cards Grid -->
-        <div class="apps-grid">
+        <div class="apps-grid" v-if="metaAppList.length">
           <!-- Placeholder cards - these would be populated from API -->
-          <!-- <div class="app-card" v-for="i in 8" :key="i">
+          <div class="app-card" v-for="(item,index) in metaAppList" :key="index">
             <div class="app-cover">
               <div class="app-cover-placeholder"></div>
             </div>
@@ -92,7 +92,7 @@
                 </div>
               </div>
             </div>
-          </div> -->
+          </div>
         </div>
 
         <!-- Pagination -->
@@ -125,12 +125,12 @@
   </template>
 
   <script setup lang="ts">
-  import { ref } from 'vue'
+  import { ref,type Ref } from 'vue'
   import Banner from '@/components/Banner/Banner.vue'
   import SubmitMetaAppModal from '@/components/SubmitMetaAppModal/SubmitMetaAppModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/components/Toast/useToast'
-
+import { type AddressPinListResponse } from "@/api/ManV2";
   // Categories
   const categories = [
     { label: '全部', value: 'all' },
@@ -145,6 +145,7 @@ import { useToast } from '@/components/Toast/useToast'
   const searchQuery = ref('')
   const { showToast } =useToast()
   const showSubmitModal = ref(false)
+  const metaAppList:Ref<AddressPinListResponse[]>=ref([])
 
   function openSubmitModal() {
   if(!userStore.isAuthorized){
