@@ -1,7 +1,7 @@
 <template>
   <div class="protocol-card" @click="handleClick">
     <div class="card-header">
-      <h3 class="card-title">{{ title }}</h3>
+      <h3 class="card-title">{{protocolName}}: {{ title }}</h3>
       <!-- <div class="card-tags">
         <span
           v-for="tag in tags"
@@ -23,16 +23,15 @@ interface Props {
   title: string
   tags?: string[] // 使 tags 成为可选属性
   description: string
-  id?: number // 添加 id 属性用于路由跳转
+  protocolName:string
+  id: string // 协议PINID
 }
 
 const props = defineProps<Props>()
 const router = useRouter()
 
 const handleClick = () => {
-  // 使用协议 ID 跳转到详情页
-  const protocolId = props.id || 1 // 如果没有传入 id，使用默认值 1
-  router.push(`/protocol/${protocolId}`)
+  router.push({ name: 'ProtocolDetail', params: { id: props.id } })
 }
 </script>
 

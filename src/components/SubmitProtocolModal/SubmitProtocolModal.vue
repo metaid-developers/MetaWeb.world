@@ -281,7 +281,7 @@ const generateJSON5WithComments = () => {
   metaDataItems.value.forEach((item, index) => {
     if (item.key) {
       if (item.description) {
-        result += `// ${item.description}\n`
+        result += ` //${item.description}\n`
       }
 
       const parsedValue = parseValue(item.value, item.valueType)
@@ -326,7 +326,7 @@ const generateJSON5WithComments = () => {
           valueStr = `"${parsedValue}"`
       }
 
-      result += `  "${item.key}": ${valueStr}`
+      result += ` "${item.key}": ${valueStr}`
 
       if (index < metaDataItems.value.length - 1) {
         result += ','

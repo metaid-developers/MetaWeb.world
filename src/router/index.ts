@@ -19,7 +19,7 @@ const routes: Array<RouteRecordRaw> = [
     }
   },
   {
-    path: '/metaprotocol/:id',
+    path: '/protocols/:id',
     name: 'ProtocolDetail',
     component: () => import('@/views/ProtocolDetailView.vue'),
   

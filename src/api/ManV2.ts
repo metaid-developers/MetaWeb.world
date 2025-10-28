@@ -49,48 +49,56 @@ export interface MetaIdListResponse {
 
 
 export interface PinInfo {
-  Content?: string
-  ContentSummary?: string
-  Number: number
-  Operation: string
-  Id: string
-  Type: string
-  Path: string
-  MetaId: string
-  Pop?: number
-  ChainName: string
-  InitialOwner?: string
-  Address: string
-  CreateAddress?: string
-  Timestamp: number
-  PopLv?: number
-  Preview?: string
+    content?: string
+    contentSummary?: string
+    number: number
+    operation: string
+    id: string
+    type: string
+    path: string
+    metaid: string
+    pop?: number
+    chainName: string
+    initialOwner?: string
+    creator:string
+    address: string
+    createMetaId:string
+    output:string
+    outputValue:number
+    timestamp:number
+    encryption:string
+    version:string
+    createAddress?: string
+    contentType:string
+
+    popLv?: number
+    preview?: string
 }
 
 
 export interface PinDetail extends PinInfo {
-  Content: string
+ 
 }
 
 
 export interface PinListResponse {
-  Pins: PinInfo[]
-  Count: {
-    MetaId: number
-    Pin: number
+  pins: PinInfo[]
+  count: {
+    metaId: number
+    pin: number
   }
-  Active: string
-  LastId?: string
+  active: string
+  lastId?: string
 }
 
 
 export interface MempoolListResponse {
-  Pins: PinInfo[]
-  Count: {
-    MetaId: number
-    Pin: number
+  pins: PinInfo[]
+  count: {
+    metaId: number
+    pin: number
   }
-  Active: string
+  active: string
 }
 
 
@@ -101,24 +109,24 @@ export interface AddressPinListResponse {
 
 
 export interface MetaIdInfo {
-  MetaId: string
-  Address: string
-  Status: number
+  metaId: string
+  address: string
+  status: number
   [key: string]: any
 }
 
 
 export interface MetaIdInfoResponse {
-  MetaIdInfo: MetaIdInfo
+  metaIdInfo: MetaIdInfo
   unconfirmed: string
   blocked: boolean
 }
 
 export interface NotificationInfo {
-  NotifcationId: number
-  FromPinId: string
-  Type: string
-  Content: string
+  notifcationId: number
+  fromPinId: string
+  type: string
+  content: string
 }
 
 

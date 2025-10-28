@@ -3,7 +3,7 @@
     <div class="detail-container">
       <!-- 面包屑导航 -->
       <nav class="breadcrumb">
-        <router-link to="/" class="breadcrumb-link">协议广场</router-link>
+        <router-link to="/metaprotocol" class="breadcrumb-link">协议广场</router-link>
         <span class="breadcrumb-separator">/</span>
         <span class="breadcrumb-current">协议详情</span>
       </nav>
@@ -12,19 +12,19 @@
       <div class="body-box">
         <!-- 协议头部 -->
         <div class="protocol-header">
-          <h1 class="protocol-title">{{ protocolTitle }}</h1>
+          <h1 class="protocol-title">{{ protocolName }}: {{ protocolTitle }}</h1>
           <div class="protocol-meta">
             <span class="meta-item">
               <svg class="meta-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
-              <span>创建者: 1024</span>
+              <span>创建者: {{ protocolAuthor }}</span>
             </span>
             <span class="meta-item">
               <svg class="meta-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span>创建时间: 2025-10-24</span>
+              <span>创建时间: {{formatDateTime(protocolDetail?.timestamp)  }}</span>
             </span>
           </div>
         </div>
@@ -52,17 +52,29 @@
           <h2 class="section-title">协议信息</h2>
           <div class="section-content">
             <div class="info-grid">
+
+                <div class="info-item">
+                <span class="info-label">协议名:</span>
+                <span class="info-value">{{ protocolName }}</span>
+              </div>
               <div class="info-item">
+                <span class="info-label">Path:</span>
+                <span class="info-value">{{ protocolPath }}</span>
+              </div>
+
+
+              <div class="info-item">
+              
                 <span class="info-label">协议 ID:</span>
-                <span class="info-value">{{ protocolId }}</span>
+                <span class="info-value">{{ protocolDetail?.id }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">版本:</span>
-                <span class="info-value">v1.0.0</span>
+                <span class="info-value">{{ protocolVersion }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">类型:</span>
-                <span class="info-value">application/json</span>
+                <span class="info-value">{{ protocolContentType }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">编码:</span>
@@ -212,11 +224,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCreateProtocols } from '@/hooks/use-create-protocols'
 import { useToast } from '@/components/Toast/useToast'
-
+import { type PinDetail, getPinDetail } from '@/api/ManV2'
+import { formatDateTime } from "@/utils/format";
 // 接口定义
 interface Comment {
   id: string
@@ -242,14 +255,16 @@ const { showToast } = useToast()
 
 // 协议基本信息
 const protocolId = ref('')
-const protocolTitle = ref('简单测试协议')
-const protocolDescription = ref('这是一个简单的测试协议，用于测试协议的创建和显示。')
+const protocolTitle = ref('')
+const protocolDescription = ref('')
+const protocolContentType=ref('')
+const protocolVersion=ref('')
+const protocolAuthor=ref('')
+const protocolName=ref('')
+const protocolPath=ref('')
+const protocolDetail:Ref<PinDetail>=ref()
 
-
-const protocolContent = ref(`{
-  // 内容
-  "content": "这是一个简单的测试协议，用于测试协议的创建和显示。"
-}`)
+const protocolContent = ref()
 
 // 点赞相关状态
 const isLiked = ref(false)
@@ -430,8 +445,46 @@ const formatTime = (date: Date): string => {
   return date.toLocaleDateString('zh-CN')
 }
 
-onMounted(() => {
+onMounted(async () => {
   protocolId.value = route.params.id as string
+
+  // 获取协议详情
+  try {
+    const detail = await getPinDetail({
+      numberOrId: protocolId.value
+    })
+
+    if (detail) {
+      protocolDetail.value = detail
+
+      // 解析contentSummary获取标题和描述
+      try {
+        let contentSummary: any = {}
+        if (detail.contentSummary) {
+          if (typeof detail.contentSummary === 'object') {
+            contentSummary = detail.contentSummary
+          } else if (typeof detail.contentSummary === 'string') {
+            contentSummary = JSON.parse(detail.contentSummary)
+          }
+        }
+        protocolContent.value=contentSummary?.protocolContent
+        protocolDescription.value=contentSummary?.intro
+        protocolTitle.value=contentSummary?.title
+        protocolContentType.value=contentSummary?.protocolContentType
+        protocolVersion.value=contentSummary?.version
+        protocolAuthor.value=contentSummary?.authors
+        protocolName.value=contentSummary?.protocolName
+        protocolPath.value=contentSummary?.path
+      } catch (e) {
+        console.error('解析contentSummary失败:', e)
+      
+      }
+
+    }
+  } catch (error) {
+    console.error('获取协议详情失败:', error)
+    showToast('获取协议详情失败', 'error')
+  }
 })
 </script>
 
@@ -635,6 +688,10 @@ onMounted(() => {
   border-radius: 8px;
   padding: 20px;
   overflow-x: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
 
   @media (max-width: 768px) {
     padding: 16px;
