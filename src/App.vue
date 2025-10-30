@@ -161,6 +161,14 @@ onMounted(async () => {
       accountInterval.value = setInterval(async () => {
     try {
        rootStore.checkWebViewBridge()
+
+        if (!userStore.isAuthorized) {
+     
+        if(rootStore.isWebView){
+        await connectMetalet()
+        }
+        }
+
        if(rootStore.isWebView) return
        
       if (window.metaidwallet && connectionStore.last.status == 'connected' && userStore.isAuthorized) {
@@ -174,7 +182,7 @@ onMounted(async () => {
     } catch (error) {
       console.error('Error checking account status:', error)
     }
-  }, 5 * 1000)
+  }, 2 * 1000)
   
 
 
