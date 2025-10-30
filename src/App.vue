@@ -219,8 +219,7 @@ onMounted(async () => {
 
   // 初始检查
   checkMetalet()
-   showToast("打印用户信息",'info')
-  showToast(userStore.last.address,'info')
+
 
 
   if(window.metaidwallet && connectionStore.last.status == 'connected' && userStore.isAuthorized){
