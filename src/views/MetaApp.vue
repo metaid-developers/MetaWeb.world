@@ -553,7 +553,7 @@ import { type AddressPinListResponse } from "@/api/ManV2";
     .search-box {
      
       min-width: 40%;
-
+      width: 40%;
       .search-input {
         width: 100%;
       }
