@@ -175,6 +175,7 @@ import { type AddressPinListResponse } from "@/api/ManV2";
     margin-bottom: 32px;
     gap: 24px;
     flex-wrap: wrap;
+
   }
 
   .categories {
@@ -512,5 +513,98 @@ import { type AddressPinListResponse } from "@/api/ManV2";
       color: #9ca3af;
     }
   }
+
+  // 移动端响应式样式
+  @media screen and (max-width: 768px) {
+    .metaapp-content {
+      padding: 24px 16px;
+    }
+
+    .filters-section {
+      flex-direction: column;
+      align-items: stretch;
+      gap:15px 16px;
+    }
+
+    .categories {
+      gap: 8px;
+      overflow-x: auto;
+      flex-wrap: wrap;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
+    }
+
+    .category-btn {
+      padding: 6px 16px;
+      font-size: 13px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .actions {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .search-box {
+     
+      min-width: 40%;
+
+      .search-input {
+        width: 100%;
+      }
+    }
+
+    .filter-btn,
+    .submit-metaapp-btn {
+     
+      justify-content: center;
+      padding: 10px 5px;
+      font-size: 13px;
+    }
+
+    .apps-grid {
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+  }
+
+  // 超小屏幕（例如 iPhone SE）
+  @media screen and (max-width: 375px) {
+    .metaapp-content {
+      padding: 16px 12px;
+    }
+
+    .filters-section {
+      gap: 15px;
+    }
+
+    .category-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .filter-btn,
+    .submit-metaapp-btn {
+      padding: 8px 10px;
+      font-size: 12px;
+      gap: 4px;
+
+      svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+    .apps-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+  }
+
   </style>
   
