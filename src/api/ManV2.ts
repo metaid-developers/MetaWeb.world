@@ -1,7 +1,7 @@
 import { HttpRequest } from '@/utils/http'
 
 
-const MAN_V2_BASE_URL = 'http://8.217.14.206:7777/api'
+const MAN_V2_BASE_URL = import.meta.env.VITE_MAN_V2_API || 'https://manapi.metaid.io'
 
 
 const manV2ApiInstance = new HttpRequest(MAN_V2_BASE_URL, {
