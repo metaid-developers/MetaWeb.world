@@ -164,39 +164,47 @@ const handleSubmit = async () => {
       title: formData.value.title,
       appName: formData.value.appName,
       runtime: formData.value.runtime,
+      icon:icon,
+      coverImg:coverImg,
+      introImgs:introImgs,
+      intro:formData.value.intro,
+      indexFile:formData.value.indexFile,
+      code:code,
+      contentHash:formData.value.contentHash,
+      metadata:parsedMetadata,
       version: formData.value.version,
       contentType: formData.value.contentType,
       content: content
     }
 
     // Add optional fields only if they have values
-    if (formData.value.prompt.trim()) {
-      metaAppData.prompt = formData.value.prompt
-    }
-    if (icon) {
-      metaAppData.icon = icon
-    }
-    if (coverImg) {
-      metaAppData.coverImg = coverImg
-    }
-    if (introImgs.length > 0) {
-      metaAppData.introImgs = introImgs
-    }
-    if (formData.value.intro.trim()) {
-      metaAppData.intro = formData.value.intro
-    }
-    if (formData.value.indexFile.trim()) {
-      metaAppData.indexFile = formData.value.indexFile
-    }
-    if (code) {
-      metaAppData.code = code
-    }
-    if (formData.value.contentHash.trim()) {
-      metaAppData.contentHash = formData.value.contentHash
-    }
-    if (parsedMetadata) {
-      metaAppData.metadata = parsedMetadata
-    }
+    // if (formData.value.prompt.trim()) {
+    //   metaAppData.prompt = formData.value.prompt
+    // }
+    // if (icon) {
+    //   metaAppData.icon = icon
+    // }
+    // if (coverImg) {
+    //   metaAppData.coverImg = coverImg
+    // }
+    // if (introImgs.length > 0) {
+    //   metaAppData.introImgs = introImgs
+    // }
+    // if (formData.value.intro.trim()) {
+    //   metaAppData.intro = formData.value.intro
+    // }
+    // if (formData.value.indexFile.trim()) {
+    //   metaAppData.indexFile = formData.value.indexFile
+    // }
+    // if (code) {
+    //   metaAppData.code = code
+    // }
+    // if (formData.value.contentHash.trim()) {
+    //   metaAppData.contentHash = formData.value.contentHash
+    // }
+    // if (parsedMetadata) {
+    //   metaAppData.metadata = parsedMetadata
+    // }
 
     const metaidData = {
       path: `/protocols/metaapp`,

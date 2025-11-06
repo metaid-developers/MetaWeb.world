@@ -48,10 +48,9 @@
 
         <!-- App Cards Grid -->
         <div class="apps-grid" v-if="metaAppList.length">
-          <!-- Placeholder cards - these would be populated from API -->
-          <div class="app-card" v-for="(item,index) in metaAppList" :key="index">
+          <div class="app-card" v-for="item in metaAppList" :key="item.id">
             <div class="app-cover">
-              <div class="app-cover-placeholder"></div>
+              <div class="app-cover-placeholder" :style="item.preview ? `background-image: url(${item.preview})` : ''"></div>
             </div>
             <div class="app-info">
               <div class="app-header">
@@ -59,32 +58,32 @@
                   <div class="icon-placeholder"></div>
                 </div>
                 <div class="app-meta">
-                  <h3 class="app-name">App Name</h3>
+                  <h3 class="app-name">{{ item.content || 'MetaApp' }}</h3>
                   <div class="app-stats">
                     <span class="stat">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                         <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M9 11C11.2091 11 13 9.20914 13 7C13 4.79086 11.2091 3 9 3C6.79086 3 5 4.79086 5 7C5 9.20914 6.79086 11 9 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
-                      2.2k
+                      {{ item.pop || 0 }}
                     </span>
                     <span class="stat">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                         <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.57831 8.50903 2.99871 7.05 2.99871C5.59096 2.99871 4.19169 3.57831 3.16 4.61C2.1283 5.64169 1.54871 7.04097 1.54871 8.5C1.54871 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7564 11.2728 22.0329 10.6054C22.3095 9.93789 22.4518 9.2225 22.4518 8.5C22.4518 7.7775 22.3095 7.06211 22.0329 6.39464C21.7564 5.72718 21.351 5.12075 20.84 4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
-                      2.2k
+                      {{ item.popLv || 0 }}
                     </span>
                   </div>
                 </div>
-                <span class="version-badge">版本1.0</span>
+                <span class="version-badge">版本{{ item.version || '1.0' }}</span>
               </div>
               <p class="app-description">
-                这是一个示例应用的描述文本，会显示应用的主要功能和特点。
+                {{ item.contentSummary || item.content || '暂无描述' }}
               </p>
               <div class="app-footer">
                 <div class="app-author">
                   <div class="author-avatar"></div>
-                  <span class="author-name">metaid.space</span>
+                  <span class="author-name">{{ item.metaid || item.address || 'Unknown' }}</span>
                 </div>
                 <div class="app-actions">
                   <button class="btn-download">下载</button>
@@ -125,12 +124,12 @@
   </template>
 
   <script setup lang="ts">
-  import { ref,type Ref } from 'vue'
+  import { ref, onMounted, type Ref } from 'vue'
   import Banner from '@/components/Banner/Banner.vue'
   import SubmitMetaAppModal from '@/components/SubmitMetaAppModal/SubmitMetaAppModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/components/Toast/useToast'
-import { type AddressPinListResponse } from "@/api/ManV2";
+import { type PinInfo, getPinListByPath } from "@/api/ManV2";
   // Categories
   const categories = [
     { label: '全部', value: 'all' },
@@ -145,7 +144,7 @@ import { type AddressPinListResponse } from "@/api/ManV2";
   const searchQuery = ref('')
   const { showToast } =useToast()
   const showSubmitModal = ref(false)
-  const metaAppList:Ref<AddressPinListResponse[]>=ref([])
+  const metaAppList: Ref<PinInfo[]> = ref([])
 
   function openSubmitModal() {
   if(!userStore.isAuthorized){
@@ -153,6 +152,21 @@ import { type AddressPinListResponse } from "@/api/ManV2";
   }
   showSubmitModal.value = true
 }
+
+// 页面加载时获取MetaApp列表
+// onMounted(async () => {
+//   try {
+//     const result = await getPinListByPath({
+//       path: '/protocols/metaapp',
+//       cursor: 0,
+//       size: 20
+//     })
+//     metaAppList.value = result.list
+//   } catch (error) {
+//     console.error('获取MetaApp列表失败:', error)
+//     showToast('获取MetaApp列表失败', 'error')
+//   }
+// })
   </script>
 
   <style lang="scss" scoped>
