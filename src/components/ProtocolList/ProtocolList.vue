@@ -96,7 +96,7 @@ import SubmitProtocolModal from '@/components/SubmitProtocolModal/SubmitProtocol
 import { useToast } from '@/components/Toast/useToast'
 import { useUserStore } from '@/stores/user'
 import { getPinListByPath, type PinInfo } from '@/api/ManV2'
-
+import { FilterMetaProtocolPinList } from "@/data/constants";
 interface Protocol {
   title: string
   description: string
@@ -178,7 +178,7 @@ async function fetchProtocols(page: number = 1) {
             }
           }
         })
-        .filter(protocol => protocol.id) // 过滤掉没有path的项
+        .filter(protocol => !FilterMetaProtocolPinList.includes(protocol.id)) // 过滤掉没有path的项
 
       total.value = response.total
     } else {

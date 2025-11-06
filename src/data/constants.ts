@@ -7,6 +7,8 @@ export const OpReturnOverhead=50 // OP_RETURN 脚本开销
 
 export const FilterMetaAppPinList=['d92e612733aafc6fa68154b955d68a4ede46051d89f45fea874956f5db50544ci0','334ad20adb8a16f1d71afc57c185bca0f5400ca7dd19b95454c685c3616b2843i0']
 
+export const FilterMetaProtocolPinList=['eb0f32b74abf2dd6de46d35848b21464ca900851ae0ea2b2da79d141ccac4b19i0','0a30799fd19d18d93fb9a30de666a728a857c6db5bd71753eeb4f8e53c624fcbi0']
+
 export const NETWORK: Network = import.meta.env.VITE_NET_WORK_NEW || 'livenet'
 
 export const SIGNING_MESSAGE =import.meta.env.VITE_APP_NAME
