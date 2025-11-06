@@ -1,5 +1,5 @@
 import { HttpRequest } from '@/utils/http'
-
+import {type UserInfo} from '@/api/man'
 
 const MAN_V2_BASE_URL = import.meta.env.VITE_MAN_V2_API || 'https://manapi.metaid.io'
 
@@ -50,7 +50,7 @@ export interface MetaIdListResponse {
 
 export interface PinInfo {
     content?: string
-    contentSummary?: string
+    contentSummary?: any
     number: number
     operation: string
     id: string
@@ -70,7 +70,7 @@ export interface PinInfo {
     version:string
     createAddress?: string
     contentType:string
-
+    userInfo?:UserInfo
     popLv?: number
     preview?: string
 }

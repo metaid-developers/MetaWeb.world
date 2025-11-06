@@ -5,7 +5,7 @@ export const InputSize=150 // 每个输入大小（含签名）
 export const OutputSize=34 // 每个输出大小
 export const OpReturnOverhead=50 // OP_RETURN 脚本开销
 
-
+export const FilterMetaAppPinList=['d92e612733aafc6fa68154b955d68a4ede46051d89f45fea874956f5db50544ci0','334ad20adb8a16f1d71afc57c185bca0f5400ca7dd19b95454c685c3616b2843i0']
 
 export const NETWORK: Network = import.meta.env.VITE_NET_WORK_NEW || 'livenet'
 

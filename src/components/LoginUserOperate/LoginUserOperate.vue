@@ -19,6 +19,7 @@
         class="user-warp-item  overflow-hidden"
         :meta-name="''"
         :disabled="true"
+        :is-custom="false"
       />
      
     </div>

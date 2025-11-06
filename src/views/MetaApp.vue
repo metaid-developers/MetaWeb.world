@@ -51,54 +51,64 @@
           <div class="app-card" v-for="item in metaAppList.list" :key="item.id">
             <!-- 卡片预览图 -->
             <div class="card-preview">
-              <div class="preview-placeholder">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2L2 7V12C2 16.5 4.23 20.68 7.62 23.15L12 24L16.38 23.15C19.77 20.68 22 16.5 22 12V7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-              <div class="preview-overlay"></div>
+              <img class="app-cover" :src="getCoverUrl(item.contentSummary?.coverImg)" alt="">
             </div>
 
             <!-- 卡片内容 -->
             <div class="card-content">
-              <div class="app-header">
-                <h3 class="app-title">{{ item.content || 'MetaApp' }}</h3>
-                <p class="app-description">
-                  {{ getContentDescription(item) }}
-                </p>
+              <div class="app-header flex justify-between items-start">
+                <div class="flex flex-row ">
+                  <img  class="app-icon" :src="getCoverUrl(item.contentSummary?.icon)" alt="">
+                   <div class="app-title flex  gap-2">
+                    <span>{{ item.contentSummary?.appName || 'MetaApp' }}</span>
+                    <img v-if="item.contentSummary?.prompt" class="ai-icon" :src="AiImg" alt="">
+                   </div>
+                </div>
+                <div class="version  bg-[#EEF5FF] "><span >
+                  {{ item.contentSummary?.version || '版本1.0' }}
+                </span></div>
+               
               </div>
 
+              <div class="app-intro text-[#999999]">
+                {{ item.contentSummary?.intro || '暂无描述' }}
+              </div>
+
+
+
               <div class="card-footer">
-                <div class="app-stats">
-                  <div class="stat-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M9 11C11.2091 11 13 9.20914 13 7C13 4.79086 11.2091 3 9 3C6.79086 3 5 4.79086 5 7C5 9.20914 6.79086 11 9 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <span>{{ item.pop || 0 }}</span>
+                <div class="app-stats rounded-full">
+                  <div class="flex items-center">
+                      <UserAvatar
+                      :image="item.userInfo?.avatar"
+                      :meta-id="item.userInfo?.metaid"
+                      :name="item.userInfo?.name"
+                      class="avatar overflow-hidden"
+                      :meta-name="''"
+                      :disabled="true"
+                      :is-custom="false"
+                      />
+                        <div class="author flex flex-col">
+                          <span class="name">{{item.userInfo?.name || item.userInfo?.metaid?.slice(0,6)}}</span>
+                          <span class="metaid">METAID: {{ item.userInfo?.metaid?.slice(0,6) }}</span>
+                        </div>
+            
                   </div>
                   <div class="stat-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.57831 8.50903 2.99871 7.05 2.99871C5.59096 2.99871 4.19169 3.57831 3.16 4.61C2.1283 5.64169 1.54871 7.04097 1.54871 8.5C1.54871 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7564 11.2728 22.0329 10.6054C22.3095 9.93789 22.4518 9.2225 22.4518 8.5C22.4518 7.7775 22.3095 7.06211 22.0329 6.39464C21.7564 5.72718 21.351 5.12075 20.84 4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <span>{{ item.popLv || 0 }}</span>
+                    
                   </div>
                 </div>
 
-                <div class="action-buttons">
-                  <button class="btn-download">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    下载
+                <div class="action-buttons ">
+                  <button class="btn-download rounded-full" @click="handleDownload(item)">
+                    <span>
+                      下载
+                    </span>
                   </button>
-                  <button class="btn-run">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <path d="M5 3L19 12L5 21V3Z" fill="currentColor"/>
-                    </svg>
-                    运行
+                  <button class="btn-run rounded-full" @click="handleRun">
+                    <span>
+                      运行
+                    </span>
                   </button>
                 </div>
               </div>
@@ -152,7 +162,11 @@
   import SubmitMetaAppModal from '@/components/SubmitMetaAppModal/SubmitMetaAppModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/components/Toast/useToast'
-import { type AddressPinListResponse, getPinListByPath } from "@/api/ManV2";
+import { type AddressPinListResponse,type PinInfo,  getPinListByPath } from "@/api/ManV2";
+import AiImg from '@/assets/images/ai.svg'
+import DefaultImg from "@/assets/images/release_add_img.svg";
+import {getUserInfoByAddress} from '@/api/man'
+import { FilterMetaAppPinList } from "@/data/constants";
   // Categories
   const categories = [
     { label: '全部', value: 'all' },
@@ -171,6 +185,8 @@ import { type AddressPinListResponse, getPinListByPath } from "@/api/ManV2";
     total:0,
     list:[]
   })
+  // 追踪每个 app-card 的 userInfo 加载状态
+const userInfoLoadingMap = ref<Map<string, boolean>>(new Map())
 
   // 分页相关状态
   const currentPage = ref(1)
@@ -185,6 +201,15 @@ import { type AddressPinListResponse, getPinListByPath } from "@/api/ManV2";
   const hasNextPage = computed(() => {
     return metaAppList.value.total > currentPage.value * pageSize
   })
+
+  const getCoverUrl = (coverImg: string): string => {
+    if(!coverImg) return DefaultImg
+  if (coverImg.startsWith('metafile://')) {
+    const pinId = coverImg.replace('metafile://', '')
+    return `https://man.metaid.io/content/${pinId}`
+  }
+  return coverImg
+}
 
   // 生成分页按钮显示数组
   const pageNumbers = computed(() => {
@@ -244,22 +269,49 @@ import { type AddressPinListResponse, getPinListByPath } from "@/api/ManV2";
           if (item.contentSummary) {
             try {
               item.contentSummary = JSON.parse(item.contentSummary)
-             
+              
             } catch (error) {
               console.error('解析contentSummary失败:', error, item.contentSummary)
             }
           }
           return item
-        })
+        }).filter((item)=>!FilterMetaAppPinList.includes(item.id) )
       }
 
       metaAppList.value = result
+        if(metaAppList.value.list && metaAppList.value.list.length)
+        for (let item of metaAppList.value.list) {
+        loadUserInfo(item)
+        }
       currentPage.value = page
     } catch (error) {
       console.error('获取MetaApp列表失败:', error)
       showToast('获取MetaApp列表失败', 'error')
     }
   }
+
+  // 异步加载用户信息
+const loadUserInfo = async (app: PinInfo) => {
+  if (!app.address) return
+
+  try {
+    // 标记该 note 的 userInfo 正在加载
+    userInfoLoadingMap.value.set(app.id, true)
+
+    const userInfo = await getUserInfoByAddress(app.address)
+
+    // 找到对应的 note 并更新 userInfo
+    const noteIndex = metaAppList.value.list.findIndex(n => n.id === app.id)
+    if (noteIndex !== -1) {
+      metaAppList.value.list[noteIndex].userInfo = userInfo
+    }
+  } catch (error) {
+    console.error(`Failed to load user info for MetaApp ${app.id}:`, error)
+  } finally {
+    // 标记该 note 的 userInfo 加载完成
+    userInfoLoadingMap.value.set(app.id, false)
+  }
+}
 
   // 上一页
   function goToPrevPage() {
@@ -282,15 +334,24 @@ import { type AddressPinListResponse, getPinListByPath } from "@/api/ManV2";
     }
   }
 
-  // 获取内容描述的辅助函数
-  function getContentDescription(item: any) {
-    if (item.contentSummary) {
-      if (typeof item.contentSummary === 'object') {
-        return item.contentSummary.description || item.contentSummary.summary || '暂无描述'
+  // 处理下载按钮点击事件
+  function handleDownload(item: any) {
+    if (item.contentSummary?.content) {
+      let content = item.contentSummary.content
+      // 如果content格式是metafile://{PINID}，提取PINID
+      if (content.startsWith('metafile://')) {
+        const pinId = content.replace('metafile://', '')
+        window.open(`https://man.metaid.io/content/${pinId}`, '_blank')
+      } else {
+        // 如果不是metafile格式，直接使用content作为PINID
+        window.open(`https://man.metaid.io/content/${content}`, '_blank')
       }
-      return item.contentSummary
     }
-    return item.content || '暂无描述'
+  }
+
+  // 处理运行按钮点击事件
+  function handleRun() {
+    showToast('功能开发中，敬请期待', 'info')
   }
 
   function openSubmitModal() {
@@ -461,76 +522,82 @@ onMounted(async () => {
 
   .app-card {
     background: #fff;
-    border-radius: 20px;
+    border-radius: 16px;
     overflow: hidden;
     transition: all 0.3s;
     cursor: pointer;
-   
+    padding:20px 15px;
     position: relative;
 
     &:hover {
-      transform: translateY(-8px);
-  
-      
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(59, 130, 246, 0.2);
+      transform: translateY(-4px);
     }
   }
 
   .card-preview {
     position: relative;
-    width: 100%;
-    height: 180px;
-   
+    width:100%;
+    
+    height: 160px;
+     margin-bottom: 20px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-
-    .preview-placeholder {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(255, 255, 255, 0.8);
-      z-index: 2;
+    .app-cover{
+      width: 100%;
+      height: 100%;
+     
+      
     }
-
-    .preview-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
-      z-index: 1;
-    }
+  
   }
 
   .card-content {
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.02);
-    backdrop-filter: blur(10px);
+   
+   
   }
 
   .app-header {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 
     .app-title {
-      margin: 0 0 8px 0;
-      font-size: 18px;
-      font-weight: 600;
-      color: #ffffff;
-      line-height: 1.3;
+     margin-top: 3px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #2A2A2A;
+      line-height: 1.2;
+      .ai-icon{
+        width:19px;
+        height:16px;
+      }
+    }
+    .app-icon{
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      margin-right: 10px;
+    }
+    .version{
+      margin-top: 3px;
+      border-radius: 200px;
+      font-size: 10px;
+      color: #3F71FF;
+      padding: 5px 10px;
     }
 
-    .app-description {
-      margin: 0;
-      font-size: 14px;
-      line-height: 1.5;
-      color: rgba(255, 255, 255, 0.7);
+   
+  }
+
+  .app-intro{
+     margin: 0;
+      font-size: 12px;
       display: -webkit-box;
-      -webkit-line-clamp: 2;
+      -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
       overflow: hidden;
-    }
   }
 
   .card-footer {
@@ -543,67 +610,65 @@ onMounted(async () => {
 
   .app-stats {
     display: flex;
-    gap: 16px;
-
+    padding: 2px 10px 2px 5px;
+    background: #F2F2F7;
+    .avatar{
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin-right: 3px;
+    }
+     .author {
+      line-height: 1.2;
+     .name{
+      font-size: 8px;
+       font-weight: 500;
+      color: #333;
+     }
+     .metaid{
+       font-weight: 500;
+      font-size: 8px;
+      margin-top: 1px;
+      color: #A4A4A4;
+     }
+    }
     .stat-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.6);
-
-      svg {
-        color: rgba(255, 255, 255, 0.4);
-      }
+    
     }
   }
 
   .action-buttons {
     display: flex;
-    gap: 12px;
+    gap: 6px;
 
     button {
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 8px 16px;
-      border: none;
-      border-radius: 10px;
-      font-size: 14px;
+     
+      padding: 5px 10px;
+      line-height: 1;
+       font-size: 11px;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s;
+      &:hover{
+        opacity: 0.9;
+      }
     }
 
     .btn-download {
-      background: rgba(255, 255, 255, 0.1);
-      color: rgba(255, 255, 255, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+     
+     background: #EEF5FF;
+     color: #387CF6;
 
-      &:hover {
-        background: rgba(255, 255, 255, 0.15);
-        color: #ffffff;
-        transform: translateY(-1px);
-      }
-
-      svg {
-        color: currentColor;
-      }
+    
     }
 
     .btn-run {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+     
+      background: linear-gradient(135deg, #2294FF 0%, #3C60FF 100%);
       color: white;
-      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-
-      &:hover {
-        box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
-        transform: translateY(-1px);
-      }
-
-      svg {
-        color: currentColor;
-      }
+    
     }
   }
 
@@ -632,14 +697,14 @@ onMounted(async () => {
       transition: all 0.2s;
 
       &:hover:not(:disabled) {
-        border-color: #3b82f6;
-        color: #3b82f6;
-        background: #eff6ff;
+        border-color: #000;
+        color: white;
+        background: #000;
       }
 
       &.active {
-        border-color: #3b82f6;
-        background: #3b82f6;
+        border-color: #303133;
+        background: #303133;
         color: white;
       }
 
@@ -720,7 +785,7 @@ onMounted(async () => {
     }
 
     .card-preview {
-      height: 140px;
+    
     }
 
     .card-content {
@@ -728,19 +793,11 @@ onMounted(async () => {
     }
 
     .app-header .app-title {
-      font-size: 16px;
+     
     }
 
     .action-buttons {
-      button {
-        padding: 6px 12px;
-        font-size: 13px;
-
-        svg {
-          width: 16px;
-          height: 16px;
-        }
-      }
+     
     }
   }
 
@@ -782,20 +839,17 @@ onMounted(async () => {
       }
     }
 
-    .card-preview {
-      height: 120px;
-    }
+   
 
     .card-content {
-      padding: 12px;
+     
     }
 
     .app-header {
-      margin-bottom: 12px;
+      
 
       .app-title {
-        font-size: 15px;
-        margin-bottom: 6px;
+       
       }
 
       .app-description {
@@ -816,12 +870,9 @@ onMounted(async () => {
     }
 
     .action-buttons {
-      width: 100%;
+    
 
-      button {
-        flex: 1;
-        justify-content: center;
-      }
+     
     }
   }
 
