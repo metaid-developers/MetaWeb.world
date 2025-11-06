@@ -47,47 +47,59 @@
         </div>
 
         <!-- App Cards Grid -->
-        <div class="apps-grid" v-if="metaAppList.length">
-          <div class="app-card" v-for="item in metaAppList" :key="item.id">
-            <div class="app-cover">
-              <div class="app-cover-placeholder" :style="item.preview ? `background-image: url(${item.preview})` : ''"></div>
+        <div class="apps-grid" v-if="metaAppList.list.length">
+          <div class="app-card" v-for="item in metaAppList.list" :key="item.id">
+            <!-- 卡片预览图 -->
+            <div class="card-preview">
+              <div class="preview-placeholder">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2L2 7V12C2 16.5 4.23 20.68 7.62 23.15L12 24L16.38 23.15C19.77 20.68 22 16.5 22 12V7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="preview-overlay"></div>
             </div>
-            <div class="app-info">
+
+            <!-- 卡片内容 -->
+            <div class="card-content">
               <div class="app-header">
-                <div class="app-icon">
-                  <div class="icon-placeholder"></div>
-                </div>
-                <div class="app-meta">
-                  <h3 class="app-name">{{ item.content || 'MetaApp' }}</h3>
-                  <div class="app-stats">
-                    <span class="stat">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M9 11C11.2091 11 13 9.20914 13 7C13 4.79086 11.2091 3 9 3C6.79086 3 5 4.79086 5 7C5 9.20914 6.79086 11 9 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                      {{ item.pop || 0 }}
-                    </span>
-                    <span class="stat">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.57831 8.50903 2.99871 7.05 2.99871C5.59096 2.99871 4.19169 3.57831 3.16 4.61C2.1283 5.64169 1.54871 7.04097 1.54871 8.5C1.54871 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7564 11.2728 22.0329 10.6054C22.3095 9.93789 22.4518 9.2225 22.4518 8.5C22.4518 7.7775 22.3095 7.06211 22.0329 6.39464C21.7564 5.72718 21.351 5.12075 20.84 4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                      {{ item.popLv || 0 }}
-                    </span>
+                <h3 class="app-title">{{ item.content || 'MetaApp' }}</h3>
+                <p class="app-description">
+                  {{ getContentDescription(item) }}
+                </p>
+              </div>
+
+              <div class="card-footer">
+                <div class="app-stats">
+                  <div class="stat-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M9 11C11.2091 11 13 9.20914 13 7C13 4.79086 11.2091 3 9 3C6.79086 3 5 4.79086 5 7C5 9.20914 6.79086 11 9 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>{{ item.pop || 0 }}</span>
+                  </div>
+                  <div class="stat-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.57831 8.50903 2.99871 7.05 2.99871C5.59096 2.99871 4.19169 3.57831 3.16 4.61C2.1283 5.64169 1.54871 7.04097 1.54871 8.5C1.54871 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7564 11.2728 22.0329 10.6054C22.3095 9.93789 22.4518 9.2225 22.4518 8.5C22.4518 7.7775 22.3095 7.06211 22.0329 6.39464C21.7564 5.72718 21.351 5.12075 20.84 4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>{{ item.popLv || 0 }}</span>
                   </div>
                 </div>
-                <span class="version-badge">版本{{ item.version || '1.0' }}</span>
-              </div>
-              <p class="app-description">
-                {{ item.contentSummary || item.content || '暂无描述' }}
-              </p>
-              <div class="app-footer">
-                <div class="app-author">
-                  <div class="author-avatar"></div>
-                  <span class="author-name">{{ item.metaid || item.address || 'Unknown' }}</span>
-                </div>
-                <div class="app-actions">
-                  <button class="btn-download">下载</button>
-                  <button class="btn-run">运行</button>
+
+                <div class="action-buttons">
+                  <button class="btn-download">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    下载
+                  </button>
+                  <button class="btn-run">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M5 3L19 12L5 21V3Z" fill="currentColor"/>
+                    </svg>
+                    运行
+                  </button>
                 </div>
               </div>
             </div>
@@ -95,27 +107,38 @@
         </div>
 
         <!-- Pagination -->
-        <!-- <div class="pagination">
-          <button class="pagination-btn">
+        <div class="pagination" v-if="totalPages > 0">
+          <button
+            class="pagination-btn"
+            @click="goToPrevPage"
+            :disabled="currentPage === 1"
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
 
-          <button class="pagination-number active">1</button>
-          <button class="pagination-number">2</button>
-          <button class="pagination-number">3</button>
-          <button class="pagination-number">4</button>
-          <button class="pagination-number">5</button>
-          <span class="pagination-ellipsis">...</span>
-          <button class="pagination-number">30</button>
+          <template v-for="(page, index) in pageNumbers" :key="index">
+            <span v-if="page === '...'" class="pagination-ellipsis">...</span>
+            <button
+              v-else
+              :class="['pagination-number', { active: currentPage === page }]"
+              @click="goToPage(page as number)"
+            >
+              {{ page }}
+            </button>
+          </template>
 
-          <button class="pagination-btn">
+          <button
+            class="pagination-btn"
+            @click="goToNextPage"
+            :disabled="!hasNextPage"
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
-        </div> -->
+        </div>
       </div>
 
       <!-- Submit MetaApp Modal -->
@@ -124,12 +147,12 @@
   </template>
 
   <script setup lang="ts">
-  import { ref, onMounted, type Ref } from 'vue'
+  import { ref, onMounted, computed, type Ref } from 'vue'
   import Banner from '@/components/Banner/Banner.vue'
   import SubmitMetaAppModal from '@/components/SubmitMetaAppModal/SubmitMetaAppModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/components/Toast/useToast'
-import { type PinInfo, getPinListByPath } from "@/api/ManV2";
+import { type AddressPinListResponse, getPinListByPath } from "@/api/ManV2";
   // Categories
   const categories = [
     { label: '全部', value: 'all' },
@@ -144,7 +167,131 @@ import { type PinInfo, getPinListByPath } from "@/api/ManV2";
   const searchQuery = ref('')
   const { showToast } =useToast()
   const showSubmitModal = ref(false)
-  const metaAppList: Ref<PinInfo[]> = ref([])
+  const metaAppList: Ref<AddressPinListResponse> = ref({
+    total:0,
+    list:[]
+  })
+
+  // 分页相关状态
+  const currentPage = ref(1)
+  const pageSize = 8
+
+  // 计算总页数
+  const totalPages = computed(() => {
+    return Math.ceil(metaAppList.value.total / pageSize)
+  })
+
+  // 计算是否有下一页
+  const hasNextPage = computed(() => {
+    return metaAppList.value.total > currentPage.value * pageSize
+  })
+
+  // 生成分页按钮显示数组
+  const pageNumbers = computed(() => {
+    const total = totalPages.value
+    const current = currentPage.value
+    const pages: (number | string)[] = []
+
+    if (total <= 7) {
+      // 总页数小于等于7，全部显示
+      for (let i = 1; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      // 总页数大于7，智能显示
+      if (current <= 3) {
+        // 当前页在前面
+        for (let i = 1; i <= 5; i++) {
+          pages.push(i)
+        }
+        pages.push('...')
+        pages.push(total)
+      } else if (current >= total - 2) {
+        // 当前页在后面
+        pages.push(1)
+        pages.push('...')
+        for (let i = total - 4; i <= total; i++) {
+          pages.push(i)
+        }
+      } else {
+        // 当前页在中间
+        pages.push(1)
+        pages.push('...')
+        for (let i = current - 1; i <= current + 1; i++) {
+          pages.push(i)
+        }
+        pages.push('...')
+        pages.push(total)
+      }
+    }
+
+    return pages
+  })
+
+  // 封装获取MetaApp列表的函数
+  async function fetchMetaAppList(page: number = 1) {
+    try {
+      const cursor = (page - 1) * pageSize
+      const result = await getPinListByPath({
+        path: '/protocols/metaapp',
+        cursor,
+        size: pageSize
+      })
+
+      // 处理contentSummary的JSON序列化
+      if (result && result.list && result.list.length > 0) {
+        result.list = result.list.map(item => {
+          if (item.contentSummary) {
+            try {
+              item.contentSummary = JSON.parse(item.contentSummary)
+             
+            } catch (error) {
+              console.error('解析contentSummary失败:', error, item.contentSummary)
+            }
+          }
+          return item
+        })
+      }
+
+      metaAppList.value = result
+      currentPage.value = page
+    } catch (error) {
+      console.error('获取MetaApp列表失败:', error)
+      showToast('获取MetaApp列表失败', 'error')
+    }
+  }
+
+  // 上一页
+  function goToPrevPage() {
+    if (currentPage.value > 1) {
+      fetchMetaAppList(currentPage.value - 1)
+    }
+  }
+
+  // 下一页
+  function goToNextPage() {
+    if (hasNextPage.value) {
+      fetchMetaAppList(currentPage.value + 1)
+    }
+  }
+
+  // 跳转到指定页
+  function goToPage(page: number) {
+    if (page >= 1 && page <= totalPages.value) {
+      fetchMetaAppList(page)
+    }
+  }
+
+  // 获取内容描述的辅助函数
+  function getContentDescription(item: any) {
+    if (item.contentSummary) {
+      if (typeof item.contentSummary === 'object') {
+        return item.contentSummary.description || item.contentSummary.summary || '暂无描述'
+      }
+      return item.contentSummary
+    }
+    return item.content || '暂无描述'
+  }
 
   function openSubmitModal() {
   if(!userStore.isAuthorized){
@@ -154,19 +301,9 @@ import { type PinInfo, getPinListByPath } from "@/api/ManV2";
 }
 
 // 页面加载时获取MetaApp列表
-// onMounted(async () => {
-//   try {
-//     const result = await getPinListByPath({
-//       path: '/protocols/metaapp',
-//       cursor: 0,
-//       size: 20
-//     })
-//     metaAppList.value = result.list
-//   } catch (error) {
-//     console.error('获取MetaApp列表失败:', error)
-//     showToast('获取MetaApp列表失败', 'error')
-//   }
-// })
+onMounted(async () => {
+  await fetchMetaAppList(1)
+})
   </script>
 
   <style lang="scss" scoped>
@@ -317,170 +454,155 @@ import { type PinInfo, getPinListByPath } from "@/api/ManV2";
 
   .apps-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 24px;
     margin-bottom: 48px;
   }
 
   .app-card {
-    background: white;
-    border-radius: 16px;
+    background: #fff;
+    border-radius: 20px;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     transition: all 0.3s;
     cursor: pointer;
+   
+    position: relative;
 
     &:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      transform: translateY(-8px);
+  
+      
     }
   }
 
-  .app-cover {
+  .card-preview {
+    position: relative;
     width: 100%;
-    height: 160px;
+    height: 180px;
+   
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
 
-    .app-cover-placeholder {
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    .preview-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.8);
+      z-index: 2;
+    }
+
+    .preview-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+      z-index: 1;
     }
   }
 
-  .app-info {
-    padding: 16px;
+  .card-content {
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(10px);
   }
 
   .app-header {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 12px;
-    align-items: flex-start;
-  }
+    margin-bottom: 16px;
 
-  .app-icon {
-    flex-shrink: 0;
-    width: 48px;
-    height: 48px;
-
-    .icon-placeholder {
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 12px;
-    }
-  }
-
-  .app-meta {
-    flex: 1;
-    min-width: 0;
-
-    .app-name {
-      margin: 0 0 6px 0;
-      font-size: 16px;
+    .app-title {
+      margin: 0 0 8px 0;
+      font-size: 18px;
       font-weight: 600;
-      color: #111827;
-      white-space: nowrap;
+      color: #ffffff;
+      line-height: 1.3;
+    }
+
+    .app-description {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.7);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .app-stats {
-      display: flex;
-      gap: 12px;
-
-      .stat {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 13px;
-        color: #6b7280;
-
-        svg {
-          color: #9ca3af;
-        }
-      }
     }
   }
 
-  .version-badge {
-    padding: 4px 10px;
-    background: #eff6ff;
-    color: #3b82f6;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    white-space: nowrap;
-  }
-
-  .app-description {
-    margin: 0 0 16px 0;
-    font-size: 14px;
-    line-height: 1.6;
-    color: #6b7280;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .app-footer {
+  .card-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding-top: 16px;
-    border-top: 1px solid #f3f4f6;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  .app-author {
+  .app-stats {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    gap: 16px;
 
-    .author-avatar {
-      width: 24px;
-      height: 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 50%;
-    }
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
 
-    .author-name {
-      font-size: 12px;
-      color: #6b7280;
+      svg {
+        color: rgba(255, 255, 255, 0.4);
+      }
     }
   }
 
-  .app-actions {
+  .action-buttons {
     display: flex;
-    gap: 8px;
+    gap: 12px;
 
     button {
-      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
       border: none;
-      border-radius: 6px;
-      font-size: 13px;
+      border-radius: 10px;
+      font-size: 14px;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s;
     }
 
     .btn-download {
-      background: #f3f4f6;
-      color: #374151;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
 
       &:hover {
-        background: #e5e7eb;
+        background: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
+        transform: translateY(-1px);
+      }
+
+      svg {
+        color: currentColor;
       }
     }
 
     .btn-run {
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 
       &:hover {
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
         transform: translateY(-1px);
+      }
+
+      svg {
+        color: currentColor;
       }
     }
   }
@@ -509,7 +631,7 @@ import { type PinInfo, getPinListByPath } from "@/api/ManV2";
       cursor: pointer;
       transition: all 0.2s;
 
-      &:hover {
+      &:hover:not(:disabled) {
         border-color: #3b82f6;
         color: #3b82f6;
         background: #eff6ff;
@@ -519,6 +641,13 @@ import { type PinInfo, getPinListByPath } from "@/api/ManV2";
         border-color: #3b82f6;
         background: #3b82f6;
         color: white;
+      }
+
+      &:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+        color: #9ca3af;
+        background: #f9fafb;
       }
     }
 
@@ -537,7 +666,7 @@ import { type PinInfo, getPinListByPath } from "@/api/ManV2";
     .filters-section {
       flex-direction: column;
       align-items: stretch;
-      gap:15px 16px;
+      gap: 15px 16px;
     }
 
     .categories {
@@ -565,7 +694,6 @@ import { type PinInfo, getPinListByPath } from "@/api/ManV2";
     }
 
     .search-box {
-     
       min-width: 40%;
       width: 40%;
       .search-input {
@@ -575,15 +703,44 @@ import { type PinInfo, getPinListByPath } from "@/api/ManV2";
 
     .filter-btn,
     .submit-metaapp-btn {
-     
       justify-content: center;
       padding: 10px 5px;
       font-size: 13px;
     }
 
     .apps-grid {
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 16px;
+    }
+
+    .app-card {
+      &:hover {
+        transform: translateY(-4px);
+      }
+    }
+
+    .card-preview {
+      height: 140px;
+    }
+
+    .card-content {
+      padding: 16px;
+    }
+
+    .app-header .app-title {
+      font-size: 16px;
+    }
+
+    .action-buttons {
+      button {
+        padding: 6px 12px;
+        font-size: 13px;
+
+        svg {
+          width: 16px;
+          height: 16px;
+        }
+      }
     }
   }
 
@@ -617,6 +774,54 @@ import { type PinInfo, getPinListByPath } from "@/api/ManV2";
     .apps-grid {
       grid-template-columns: 1fr;
       gap: 12px;
+    }
+
+    .app-card {
+      &:hover {
+        transform: translateY(-2px);
+      }
+    }
+
+    .card-preview {
+      height: 120px;
+    }
+
+    .card-content {
+      padding: 12px;
+    }
+
+    .app-header {
+      margin-bottom: 12px;
+
+      .app-title {
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+
+      .app-description {
+        font-size: 13px;
+        line-height: 1.4;
+      }
+    }
+
+    .card-footer {
+      padding-top: 12px;
+      gap: 12px;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .app-stats {
+      gap: 12px;
+    }
+
+    .action-buttons {
+      width: 100%;
+
+      button {
+        flex: 1;
+        justify-content: center;
+      }
     }
   }
 

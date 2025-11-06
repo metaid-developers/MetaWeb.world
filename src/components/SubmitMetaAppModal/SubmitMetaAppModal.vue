@@ -35,6 +35,32 @@ const runtimeOptions = [
   { value: 'linux', label: 'Linux' }
 ]
 
+// MIME type options
+const contentTypeOptions = [
+  { value: 'application/zip', label: 'ZIP压缩包' },
+  { value: 'application/x-tar', label: 'TAR压缩包' },
+  { value: 'application/x-7z-compressed', label: '7Z压缩包' },
+  { value: 'application/x-rar-compressed', label: 'RAR压缩包' },
+  { value: 'application/gzip', label: 'GZIP压缩包' },
+  { value: 'application/json', label: 'JSON数据' },
+  { value: 'application/xml', label: 'XML文档' },
+  { value: 'text/plain', label: '纯文本' },
+  { value: 'text/html', label: 'HTML网页' },
+  { value: 'text/css', label: 'CSS样式表' },
+  { value: 'application/javascript', label: 'JavaScript文件' },
+  { value: 'application/pdf', label: 'PDF文档' },
+  { value: 'image/jpeg', label: 'JPEG图片' },
+  { value: 'image/png', label: 'PNG图片' },
+  { value: 'image/gif', label: 'GIF图片' },
+  { value: 'image/svg+xml', label: 'SVG矢量图' },
+  { value: 'image/webp', label: 'WebP图片' },
+  { value: 'video/mp4', label: 'MP4视频' },
+  { value: 'video/webm', label: 'WebM视频' },
+  { value: 'audio/mpeg', label: 'MP3音频' },
+  { value: 'audio/wav', label: 'WAV音频' },
+  { value: 'application/octet-stream', label: '二进制流' }
+]
+
 // Form data
 const formData = ref({
   title: '',
@@ -68,12 +94,16 @@ const showSuccessModal = ref(false)
 const successTxid = ref('')
 
 // Computed: form validation
-// Required fields: title, appName, runtime, content
+// Required fields: title, appName, icon, coverImg, introImgs, intro, content
 const isFormValid = computed(() => {
   return !!(
     formData.value.title.trim() &&
     formData.value.appName.trim() &&
+    formData.value.intro.trim() &&
     formData.value.runtime.trim() &&
+    (iconUploadRef.value && iconUploadRef.value.selectedItems.length > 0) &&
+    (coverUploadRef.value && coverUploadRef.value.selectedItems.length > 0) &&
+    (introImgsUploadRef.value && introImgsUploadRef.value.selectedItems.length > 0) &&
     (contentUploadRef.value && contentUploadRef.value.selectedItems.length > 0)
   )
 })
@@ -115,24 +145,34 @@ const uploadMultipleFiles = async (uploadRef: any, fieldName: string): Promise<s
 
 // Submit form
 const handleSubmit = async () => {
-  // Validate required fields only: title, appName, runtime, content
-  if (!formData.value.title.trim()) {
-    showToast('请填写标题', 'warning')
-    return
-  }
-  if (!formData.value.appName.trim()) {
-    showToast('请填写应用名称', 'warning')
-    return
-  }
-  if (!formData.value.runtime.trim()) {
-    showToast('请选择运行时环境', 'warning')
-    return
+  // Validate all required fields: title, appName, icon, coverImg, introImgs, intro, content
+  const requiredFields = [
+    { field: 'title', name: '标题', value: formData.value.title.trim() },
+    { field: 'appName', name: '应用名称', value: formData.value.appName.trim() },
+    { field: 'intro', name: '应用简介', value: formData.value.intro.trim() },
+    { field: 'runtime', name: '运行时环境', value: formData.value.runtime.trim() }
+  ]
+
+  for (const { field, name, value } of requiredFields) {
+    if (!value) {
+      showToast(`请填写${name}`, 'warning')
+      return
+    }
   }
 
-  // Validate required file upload: content only
-  if (!contentUploadRef.value || contentUploadRef.value.selectedItems.length === 0) {
-    showToast('请上传应用内容包', 'warning')
-    return
+  // Validate required file uploads: icon, coverImg, introImgs, content
+  const requiredUploads = [
+    { ref: iconUploadRef, name: '应用图标' },
+    { ref: coverUploadRef, name: '封面图' },
+    { ref: introImgsUploadRef, name: '简介图' },
+    { ref: contentUploadRef, name: '应用内容包' }
+  ]
+
+  for (const { ref, name } of requiredUploads) {
+    if (!ref.value || ref.value.selectedItems.length === 0) {
+      showToast(`请上传${name}`, 'warning')
+      return
+    }
   }
 
   try {
@@ -392,13 +432,14 @@ const handleClose = () => {
                     <!-- Intro -->
                     <div class="form-item">
                       <label class="form-label">
-                        应用简介 <span class="text-gray-400 text-xs">(可选)</span>
+                        应用简介 <span class="text-red-500">*</span>
                       </label>
                       <textarea
                         v-model="formData.intro"
                         class="form-input resize-none"
                         placeholder="请输入应用说明简介"
                         rows="4"
+                        required
                       ></textarea>
                     </div>
                   </div>
@@ -413,7 +454,7 @@ const handleClose = () => {
                     <!-- Icon -->
                     <div class="form-item">
                       <label class="form-label">
-                        应用图标 <span class="text-gray-400 text-xs">(可选)</span>
+                        应用图标 <span class="text-red-500">*</span>
                       </label>
                       <ProtocolAttachmentUpload
                         ref="iconUploadRef"
@@ -428,7 +469,7 @@ const handleClose = () => {
                     <!-- Cover Image -->
                     <div class="form-item">
                       <label class="form-label">
-                        封面图 <span class="text-gray-400 text-xs">(可选)</span>
+                        封面图 <span class="text-red-500">*</span>
                       </label>
                       <ProtocolAttachmentUpload
                         ref="coverUploadRef"
@@ -443,7 +484,7 @@ const handleClose = () => {
                     <!-- Intro Images -->
                     <div class="form-item">
                       <label class="form-label">
-                        简介图 <span class="text-gray-400 text-xs">(可选)</span>
+                        简介图 <span class="text-red-500">*</span>
                       </label>
                       <ProtocolAttachmentUpload
                         ref="introImgsUploadRef"
@@ -536,12 +577,11 @@ const handleClose = () => {
                       <label class="form-label">
                         内容类型
                       </label>
-                      <input
-                        v-model="formData.contentType"
-                        type="text"
-                        class="form-input"
-                        placeholder="application/zip"
-                      />
+                      <select v-model="formData.contentType" class="form-input">
+                        <option v-for="contentType in contentTypeOptions" :key="contentType.value" :value="contentType.value">
+                          {{ contentType.value }} ({{ contentType.label }})
+                        </option>
+                      </select>
                     </div>
 
                     <!-- Content Hash (Optional) -->
@@ -577,27 +617,46 @@ const handleClose = () => {
               </div>
 
               <!-- Footer -->
-              <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-                <button
-                  type="button"
-                  @click="handleClose"
-                  :disabled="isSubmitting"
-                  class="btn-secondary"
-                >
-                  取消
-                </button>
-                <button
-                  type="button"
-                  @click="handleSubmit"
-                  :disabled="isSubmitting || !isFormValid"
-                  class="btn-primary"
-                >
-                  <svg v-if="isSubmitting" class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {{ isSubmitting ? '提交中...' : '提交 MetaApp' }}
-                </button>
+              <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <!-- Validation Error Message -->
+                <div v-if="!isFormValid" class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div class="flex items-start gap-2">
+                    <svg class="w-5 h-5 text-yellow-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                    <div class="text-sm text-yellow-800">
+                      <p class="font-semibold">请完善所有必填项目</p>
+                      <ul class="mt-1 list-disc list-inside text-xs">
+                        <li>标题、应用名称、应用简介</li>
+                        <li>应用图标、封面图、简介图</li>
+                        <li>应用内容包和运行时环境</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    @click="handleClose"
+                    :disabled="isSubmitting"
+                    class="btn-secondary"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    @click="handleSubmit"
+                    :disabled="isSubmitting || !isFormValid"
+                    class="btn-primary"
+                  >
+                    <svg v-if="isSubmitting" class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {{ isSubmitting ? '提交中...' : '提交 MetaApp' }}
+                  </button>
+                </div>
               </div>
             </DialogPanel>
           </TransitionChild>
