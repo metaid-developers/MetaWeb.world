@@ -49,6 +49,7 @@ const encodingTypes = [
 const dataTypes = [
   { value: 'String', label: 'String' },
   { value: 'Number', label: 'Number' },
+  { value: 'Boolean', label: 'Boolean' },
   { value: 'Object', label: 'Object' },
   { value: 'Array', label: 'Array' },
 ]
@@ -130,6 +131,14 @@ const removeMetaDataItem = (id: number) => {
   metaDataItems.value = metaDataItems.value.filter(item => item.id !== id)
 }
 
+// 处理Value类型变化
+const handleValueTypeChange = (item: MetaDataItem) => {
+  // 当切换到Boolean类型且当前值为空时，设置默认值为'false'
+  if (item.valueType === 'Boolean' && !item.value) {
+    item.value = 'false'
+  }
+}
+
 // 处理文件选择成功
 const handleFilesSelected = (files: any[]) => {
   console.log('文件选择成功:', files)
@@ -151,6 +160,8 @@ const parseValue = (value: string, type: string): any => {
         return ''
       case 'Number':
         return 0
+      case 'Boolean':
+        return false
       case 'Object':
         return {}
       case 'Array':
@@ -162,6 +173,10 @@ const parseValue = (value: string, type: string): any => {
 
   try {
     switch (type) {
+      case 'Boolean':
+        // 解析布尔值
+        const lowerValue = value.trim().toLowerCase()
+        return lowerValue === 'true' || lowerValue === '1'
       case 'Number':
         const num = Number(value)
         if (isNaN(num)) {
@@ -296,6 +311,10 @@ const generateJSON5WithComments = () => {
         case 'Number':
           // 数字类型：直接显示，不需要引号
           valueStr = parsedValue.toString()
+          break
+        case 'Boolean':
+          // 布尔类型：直接显示true或false，不需要引号
+          valueStr = parsedValue ? 'true' : 'false'
           break
         case 'Object':
           // 对象类型：格式化为标准JSON格式
@@ -490,6 +509,8 @@ const handleClose = () => {
 // 获取placeholder
 const getPlaceholder = (type: string) => {
   switch (type) {
+    case 'Boolean':
+      return 'true 或 false'
     case 'Object':
       return '{"example": "value"}'
     case 'Array':
@@ -793,7 +814,11 @@ const getPlaceholder = (type: string) => {
 
                           <div class="form-item">
                             <label class="form-label-sm">Value 类型</label>
-                            <select v-model="item.valueType" class="form-input-sm">
+                            <select
+                              v-model="item.valueType"
+                              class="form-input-sm"
+                              @change="handleValueTypeChange(item)"
+                            >
                               <option v-for="type in dataTypes" :key="type.value" :value="type.value">
                                 {{ type.label }}
                               </option>
@@ -805,14 +830,37 @@ const getPlaceholder = (type: string) => {
 
                           <div class="form-item">
                             <label class="form-label-sm">Value</label>
+                            <!-- Boolean类型使用单选按钮 -->
+                            <div v-if="item.valueType === 'Boolean'" class="flex gap-4 mt-2">
+                              <label class="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  v-model="item.value"
+                                  value="true"
+                                  class="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                                />
+                                <span class="text-sm text-gray-700">true</span>
+                              </label>
+                              <label class="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  v-model="item.value"
+                                  value="false"
+                                  class="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                                />
+                                <span class="text-sm text-gray-700">false</span>
+                              </label>
+                            </div>
+                            <!-- 其他类型使用文本框 -->
                             <textarea
+                              v-else
                               v-model="item.value"
                               class="form-textarea-sm"
                               :placeholder="getPlaceholder(item.valueType)"
                               rows="3"
                             ></textarea>
                             <p class="text-xs text-gray-500 mt-1">
-                              可选字段。不填写时根据类型使用默认值：String(""), Number(0), Object({}), Array([])
+                              可选字段。不填写时根据类型使用默认值：String(""), Number(0), Boolean(false), Object({}), Array([])
                             </p>
                           </div>
 

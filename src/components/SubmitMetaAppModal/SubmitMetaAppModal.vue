@@ -61,6 +61,42 @@ const contentTypeOptions = [
   { value: 'application/octet-stream', label: '二进制流' }
 ]
 
+// Popular app tags
+const popularTags = [
+  '游戏', '工具', '社交', '娱乐', '教育',
+  '生产力', '金融', '新闻', '购物', '音乐',
+  '视频', '图片', '阅读', '健康', '旅行',
+  '美食', '运动', 'AI', '区块链', 'Web3',
+  'DeFi', 'NFT', 'Metaverse', 'DAO', 'DApp'
+]
+
+// Custom tag input
+const customTagInput = ref('')
+
+// Add custom tag
+const addCustomTag = () => {
+  const tag = customTagInput.value.trim()
+  if (tag && !formData.value.tags.includes(tag)) {
+    formData.value.tags.push(tag)
+    customTagInput.value = ''
+  }
+}
+
+// Remove tag
+const removeTag = (index: number) => {
+  formData.value.tags.splice(index, 1)
+}
+
+// Toggle tag from popular list
+const toggleTag = (tag: string) => {
+  const index = formData.value.tags.indexOf(tag)
+  if (index > -1) {
+    formData.value.tags.splice(index, 1)
+  } else {
+    formData.value.tags.push(tag)
+  }
+}
+
 // Form data
 const formData = ref({
   title: '',
@@ -70,6 +106,7 @@ const formData = ref({
   coverImg: '',
   introImgs: [] as string[],
   intro: '',
+  disabled:false,
   runtime: 'browser',
   indexFile: '',
   version: 'v1.0.0',
@@ -77,7 +114,8 @@ const formData = ref({
   content: '',
   code: '',
   contentHash: '',
-  metadata: ''
+  metadata: '',
+  tags:[]
 })
 
 const isSubmitting = ref(false)
@@ -94,17 +132,14 @@ const showSuccessModal = ref(false)
 const successTxid = ref('')
 
 // Computed: form validation
-// Required fields: title, appName, icon, coverImg, introImgs, intro, content
+// Required fields: title, appName, icon, coverImg, runtime
 const isFormValid = computed(() => {
   return !!(
     formData.value.title.trim() &&
     formData.value.appName.trim() &&
-    formData.value.intro.trim() &&
     formData.value.runtime.trim() &&
     (iconUploadRef.value && iconUploadRef.value.selectedItems.length > 0) &&
-    (coverUploadRef.value && coverUploadRef.value.selectedItems.length > 0) &&
-    (introImgsUploadRef.value && introImgsUploadRef.value.selectedItems.length > 0) &&
-    (contentUploadRef.value && contentUploadRef.value.selectedItems.length > 0)
+    (coverUploadRef.value && coverUploadRef.value.selectedItems.length > 0)
   )
 })
 
@@ -145,11 +180,10 @@ const uploadMultipleFiles = async (uploadRef: any, fieldName: string): Promise<s
 
 // Submit form
 const handleSubmit = async () => {
-  // Validate all required fields: title, appName, icon, coverImg, introImgs, intro, content
+  // Validate all required fields: title, appName, icon, coverImg, runtime
   const requiredFields = [
     { field: 'title', name: '标题', value: formData.value.title.trim() },
     { field: 'appName', name: '应用名称', value: formData.value.appName.trim() },
-    { field: 'intro', name: '应用简介', value: formData.value.intro.trim() },
     { field: 'runtime', name: '运行时环境', value: formData.value.runtime.trim() }
   ]
 
@@ -160,12 +194,10 @@ const handleSubmit = async () => {
     }
   }
 
-  // Validate required file uploads: icon, coverImg, introImgs, content
+  // Validate required file uploads: icon, coverImg
   const requiredUploads = [
     { ref: iconUploadRef, name: '应用图标' },
-    { ref: coverUploadRef, name: '封面图' },
-    { ref: introImgsUploadRef, name: '简介图' },
-    { ref: contentUploadRef, name: '应用内容包' }
+    { ref: coverUploadRef, name: '封面图' }
   ]
 
   for (const { ref, name } of requiredUploads) {
@@ -178,13 +210,13 @@ const handleSubmit = async () => {
   try {
     isSubmitting.value = true
 
-    // Upload required file: content
-    const content = await uploadSingleFile(contentUploadRef, '应用内容包')
-
-    // Upload optional files
+    // Upload required files
     const icon = await uploadSingleFile(iconUploadRef, '应用图标')
     const coverImg = await uploadSingleFile(coverUploadRef, '封面图')
+
+    // Upload optional files
     const introImgs = await uploadMultipleFiles(introImgsUploadRef, '简介图')
+    const content = await uploadSingleFile(contentUploadRef, '应用内容包')
     const code = await uploadSingleFile(codeUploadRef, '源码包')
 
     showToast('文件上传成功，正在提交MetaApp...', 'success')
@@ -205,16 +237,20 @@ const handleSubmit = async () => {
       appName: formData.value.appName,
       runtime: formData.value.runtime,
       icon:icon,
+      prompt:formData.value.prompt,
       coverImg:coverImg,
       introImgs:introImgs,
       intro:formData.value.intro,
+      disabled:formData.value.disabled,
       indexFile:formData.value.indexFile,
       code:code,
       contentHash:formData.value.contentHash,
       metadata:parsedMetadata,
+      tags:formData.value.tags,
       version: formData.value.version,
       contentType: formData.value.contentType,
       content: content
+
     }
 
     // Add optional fields only if they have values
@@ -301,6 +337,7 @@ const resetForm = () => {
     coverImg: '',
     introImgs: [],
     intro: '',
+    disabled:false,
     runtime: 'browser',
     indexFile: '',
     version: 'v1.0.0',
@@ -308,7 +345,8 @@ const resetForm = () => {
     content: '',
     code: '',
     contentHash: '',
-    metadata: ''
+    metadata: '',
+    tags:[]
   }
 
   // Clear all file upload components
@@ -432,15 +470,44 @@ const handleClose = () => {
                     <!-- Intro -->
                     <div class="form-item">
                       <label class="form-label">
-                        应用简介 <span class="text-red-500">*</span>
+                        应用简介 <span class="text-gray-400 text-xs">(可选)</span>
                       </label>
                       <textarea
                         v-model="formData.intro"
                         class="form-input resize-none"
                         placeholder="请输入应用说明简介"
                         rows="4"
-                        required
                       ></textarea>
+                    </div>
+
+                    <!-- Disabled -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        应用状态
+                      </label>
+                      <div class="flex gap-6 mt-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            v-model="formData.disabled"
+                            :value="false"
+                            class="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span class="text-sm text-gray-700">启用 (false)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            v-model="formData.disabled"
+                            :value="true"
+                            class="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span class="text-sm text-gray-700">禁用 (true)</span>
+                        </label>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-1">
+                        设置应用是否禁用，默认为启用状态
+                      </p>
                     </div>
                   </div>
 
@@ -484,7 +551,7 @@ const handleClose = () => {
                     <!-- Intro Images -->
                     <div class="form-item">
                       <label class="form-label">
-                        简介图 <span class="text-red-500">*</span>
+                        简介图 <span class="text-gray-400 text-xs">(可选)</span>
                       </label>
                       <ProtocolAttachmentUpload
                         ref="introImgsUploadRef"
@@ -499,7 +566,7 @@ const handleClose = () => {
                     <!-- Content Package -->
                     <div class="form-item">
                       <label class="form-label">
-                        应用构建压缩包 <span class="text-red-500">*</span>
+                        应用构建压缩包 <span class="text-gray-400 text-xs">(可选)</span>
                       </label>
                       <ProtocolAttachmentUpload
                         ref="contentUploadRef"
@@ -612,6 +679,76 @@ const handleClose = () => {
                         支持任意类型: 字符串、数字、对象、数组等
                       </p>
                     </div>
+
+                    <!-- Tags (Optional) -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        应用标签 <span class="text-gray-400 text-xs">(可选)</span>
+                      </label>
+
+                      <!-- Selected Tags Display -->
+                      <div v-if="formData.tags.length > 0" class="flex flex-wrap gap-2 mb-3">
+                        <span
+                          v-for="(tag, index) in formData.tags"
+                          :key="index"
+                          class="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
+                        >
+                          {{ tag }}
+                          <button
+                            type="button"
+                            @click="removeTag(index)"
+                            class="hover:bg-purple-200 rounded-full p-0.5 transition-colors"
+                          >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </span>
+                      </div>
+
+                      <!-- Popular Tags -->
+                      <div class="mb-3">
+                        <p class="text-xs font-semibold text-gray-600 mb-2">常用标签</p>
+                        <div class="flex flex-wrap gap-2">
+                          <button
+                            v-for="tag in popularTags"
+                            :key="tag"
+                            type="button"
+                            @click="toggleTag(tag)"
+                            :class="[
+                              'px-3 py-1.5 text-sm rounded-lg border transition-all',
+                              formData.tags.includes(tag)
+                                ? 'bg-purple-600 text-white border-purple-600 font-medium'
+                                : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400 hover:bg-purple-50'
+                            ]"
+                          >
+                            {{ tag }}
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Custom Tag Input -->
+                      <div class="flex gap-2">
+                        <input
+                          v-model="customTagInput"
+                          type="text"
+                          class="form-input flex-1"
+                          placeholder="输入自定义标签"
+                          @keyup.enter="addCustomTag"
+                        />
+                        <button
+                          type="button"
+                          @click="addCustomTag"
+                          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                        >
+                          添加
+                        </button>
+                      </div>
+
+                      <p class="text-xs text-gray-500 mt-2">
+                        选择常用标签或输入自定义标签，支持多选
+                      </p>
+                    </div>
                   </div>
                 </form>
               </div>
@@ -627,9 +764,9 @@ const handleClose = () => {
                     <div class="text-sm text-yellow-800">
                       <p class="font-semibold">请完善所有必填项目</p>
                       <ul class="mt-1 list-disc list-inside text-xs">
-                        <li>标题、应用名称、应用简介</li>
-                        <li>应用图标、封面图、简介图</li>
-                        <li>应用内容包和运行时环境</li>
+                        <li>标题、应用名称</li>
+                        <li>应用图标、封面图</li>
+                        <li>运行时环境</li>
                       </ul>
                     </div>
                   </div>

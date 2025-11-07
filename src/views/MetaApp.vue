@@ -47,7 +47,7 @@
         </div>
 
         <!-- App Cards Grid -->
-        <div class="apps-grid" v-if="metaAppList.list.length">
+        <div class="apps-grid" v-if="metaAppList.list?.length">
           <div class="app-card" v-for="item in metaAppList.list" :key="item.id">
             <!-- 卡片预览图 -->
             <div class="card-preview">
@@ -598,6 +598,8 @@ onMounted(async () => {
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
       overflow: hidden;
+      height: 54px;
+      max-height: 54px;
   }
 
   .card-footer {
