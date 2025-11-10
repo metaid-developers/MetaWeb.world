@@ -1,13 +1,19 @@
 <template>
   <div class="app-container">
+    <!-- 页面加载遮罩 -->
+    <div v-if="layoutStore.isShowPageLoading" class="page-loading-overlay">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">加载中...</p>
+    </div>
+
     <!-- Header 导航栏 -->
     <Header />
-    
+
     <!-- 主要内容区域 -->
     <main class="main-content">
       <router-view />
     </main>
-    
+
     <!-- Footer 底部 -->
     <footer class="app-footer">
       <div class="footer-content">
@@ -15,7 +21,7 @@
         <span class="footer-text">About MetaBitcoin Network</span>
       </div>
     </footer>
-    
+
     <!-- 模态框组件 -->
     <ConnectWalletModalVue />
   </div>
@@ -31,6 +37,7 @@ import { useUserStore } from './stores/user'
 import { useToast } from '@/components/Toast/useToast.ts'
 import { useCredentialsStore } from './stores/credentials'
 import { type Network, useNetworkStore } from '@/stores/network'
+import { useLayoutStore } from '@/stores/layout'
 import {completeReload, sleep} from '@/utils/util'
 import { useConnectionModal } from './hooks/use-connection-modal'
 import { useRouter } from 'vue-router'
@@ -41,6 +48,7 @@ const rootStore=useRootStore()
 const connectionStore=useConnectionStore()
 const userStore=useUserStore()
 const credentialsStore=useCredentialsStore()
+const layoutStore=useLayoutStore()
 const { showToast } = useToast()
 const isNetworkChanging = ref(false)
 const MAX_RETRY_TIME = 10000 // 最大等待时间（毫秒）
@@ -339,14 +347,49 @@ body {
 @media (max-width: 768px) {
   .app-footer {
     padding: 16px 0;
-    
+
     .footer-content {
       padding: 0 16px;
     }
-    
+
     .footer-text {
       font-size: 13px;
     }
   }
+}
+
+// 页面加载遮罩
+.page-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.95);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .loading-text {
+    margin-top: 20px;
+    font-size: 16px;
+    color: #666;
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>

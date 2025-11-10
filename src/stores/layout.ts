@@ -4,8 +4,13 @@ import { defineStore } from 'pinia'
 export const useLayoutStore = defineStore('layout', {
   state: () => {
     return {
-        isShowProfileEditModal: false
-    }    
+        isShowProfileEditModal: false,
+        isShowPageLoading: false
+    }
   },
-  actions: {},
+  actions: {
+    setPageLoading(loading: boolean) {
+      this.isShowPageLoading = loading
+    }
+  },
 })

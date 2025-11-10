@@ -15,13 +15,18 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getPinDetail } from '@/api/ManV2'
 import { useToast } from '@/components/Toast/useToast'
+import { useLayoutStore } from '@/stores/layout'
 
 const route = useRoute()
 const { showToast } = useToast()
+const layoutStore = useLayoutStore()
 const loading = ref(true)
 const error = ref('')
 
 onMounted(async () => {
+  // 清除页面加载遮罩，让组件自己的 loading 状态接管
+  layoutStore.setPageLoading(false)
+
   const pinid = route.params.pinid as string
 
   if (!pinid) {

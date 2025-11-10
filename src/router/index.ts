@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useLayoutStore } from '@/stores/layout'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -77,9 +78,17 @@ const router = createRouter({
   }
 })
 
-// 路由守卫：设置页面标题
-router.beforeEach((to, _from, next) => {
+// 路由守卫：设置页面标题和加载状态
+router.beforeEach((to, from, next) => {
   document.title = `${to.meta.title || 'MetaWeb'} - MetaWeb World`
+
+  // 检测是否是外部直接访问 /metaapp/:pinid
+  // 如果 from.name 为 undefined，说明是首次访问（外部跳转）
+  const layoutStore = useLayoutStore()
+  if (to.name === 'MetaAppDetail' && !from.name) {
+    layoutStore.setPageLoading(true)
+  }
+
   next()
 })
 
