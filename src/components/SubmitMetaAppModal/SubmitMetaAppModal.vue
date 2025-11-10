@@ -63,11 +63,11 @@ const contentTypeOptions = [
 
 // Popular app tags
 const popularTags = [
-  '游戏', '工具', '社交', '娱乐', '教育',
-  '生产力', '金融', '新闻', '购物', '音乐',
-  '视频', '图片', '阅读', '健康', '旅行',
-  '美食', '运动', 'AI', '区块链', 'Web3',
-  'DeFi', 'NFT', 'Metaverse', 'DAO', 'DApp'
+  // '游戏', '工具', '社交', '娱乐', '教育',
+  // '生产力', '金融', '新闻', '购物', '音乐',
+  // '视频', '图片', '阅读', '健康', '旅行',
+  // '美食', '运动', 'AI', '区块链', 'Web3',
+  // 'DeFi', 'NFT', 'Metaverse', 'DAO', 'DApp'
 ]
 
 // Custom tag input
@@ -107,7 +107,7 @@ const formData = ref({
   introImgs: [] as string[],
   intro: '',
   disabled:false,
-  runtime: 'browser',
+  runtime: [] as string[],
   indexFile: '',
   version: 'v1.0.0',
   contentType: 'application/zip',
@@ -137,7 +137,7 @@ const isFormValid = computed(() => {
   return !!(
     formData.value.title.trim() &&
     formData.value.appName.trim() &&
-    formData.value.runtime.trim() &&
+    formData.value.runtime.length > 0 &&
     (iconUploadRef.value && iconUploadRef.value.selectedItems.length > 0) &&
     (coverUploadRef.value && coverUploadRef.value.selectedItems.length > 0)
   )
@@ -182,16 +182,21 @@ const uploadMultipleFiles = async (uploadRef: any, fieldName: string): Promise<s
 const handleSubmit = async () => {
   // Validate all required fields: title, appName, icon, coverImg, runtime
   const requiredFields = [
-    { field: 'title', name: '标题', value: formData.value.title.trim() },
-    { field: 'appName', name: '应用名称', value: formData.value.appName.trim() },
-    { field: 'runtime', name: '运行时环境', value: formData.value.runtime.trim() }
+    { name: '标题', value: formData.value.title.trim() },
+    { name: '应用名称', value: formData.value.appName.trim() }
   ]
 
-  for (const { field, name, value } of requiredFields) {
+  for (const { name, value } of requiredFields) {
     if (!value) {
       showToast(`请填写${name}`, 'warning')
       return
     }
+  }
+
+  // Validate runtime separately (array check)
+  if (formData.value.runtime.length === 0) {
+    showToast('请选择至少一个运行时环境', 'warning')
+    return
   }
 
   // Validate required file uploads: icon, coverImg
@@ -235,7 +240,7 @@ const handleSubmit = async () => {
     const metaAppData: any = {
       title: formData.value.title,
       appName: formData.value.appName,
-      runtime: formData.value.runtime,
+      runtime: formData.value.runtime.join('/'),
       icon:icon,
       prompt:formData.value.prompt,
       coverImg:coverImg,
@@ -338,7 +343,7 @@ const resetForm = () => {
     introImgs: [],
     intro: '',
     disabled:false,
-    runtime: 'browser',
+    runtime: [],
     indexFile: '',
     version: 'v1.0.0',
     contentType: 'application/zip',
@@ -566,7 +571,7 @@ const handleClose = () => {
                     <!-- Content Package -->
                     <div class="form-item">
                       <label class="form-label">
-                        应用构建压缩包 <span class="text-gray-400 text-xs">(可选)</span>
+                        应用内容包 <span class="text-gray-400 text-xs">(可选)</span>
                       </label>
                       <ProtocolAttachmentUpload
                         ref="contentUploadRef"
@@ -574,7 +579,7 @@ const handleClose = () => {
                         accepted-types=".zip,.rar,.7z,.tar,.gz"
                       />
                       <p class="text-xs text-gray-500 mt-1">
-                        上传MetaApp构建压缩包，格式将自动转换为 metafile://{`{PINID}`}
+                        上传MetaApp内容，格式将自动转换为 metafile://{`{PINID}`}
                       </p>
                     </div>
 
@@ -606,11 +611,25 @@ const handleClose = () => {
                       <label class="form-label">
                         运行时环境 <span class="text-red-500">*</span>
                       </label>
-                      <select v-model="formData.runtime" class="form-input" required>
-                        <option v-for="runtime in runtimeOptions" :key="runtime.value" :value="runtime.value">
-                          {{ runtime.label }}
-                        </option>
-                      </select>
+                      <div class="grid grid-cols-2 gap-3 mt-2">
+                        <label
+                          v-for="runtime in runtimeOptions"
+                          :key="runtime.value"
+                          class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all hover:border-purple-400 hover:bg-purple-50"
+                          :class="formData.runtime.includes(runtime.value) ? 'border-purple-500 bg-purple-50' : 'border-gray-300'"
+                        >
+                          <input
+                            type="checkbox"
+                            :value="runtime.value"
+                            v-model="formData.runtime"
+                            class="w-4 h-4 text-purple-600 focus:ring-purple-500 rounded"
+                          />
+                          <span class="text-sm font-medium text-gray-700">{{ runtime.label }}</span>
+                        </label>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-2">
+                        可多选，选中的环境将以"/"分隔（如：browser/ios）
+                      </p>
                     </div>
 
                     <!-- Index File -->
@@ -635,7 +654,7 @@ const handleClose = () => {
                         v-model="formData.version"
                         type="text"
                         class="form-input"
-                        placeholder="v1.0.1"
+                        placeholder="v1.0.0"
                       />
                     </div>
 
@@ -707,7 +726,7 @@ const handleClose = () => {
                       </div>
 
                       <!-- Popular Tags -->
-                      <div class="mb-3">
+                      <!-- <div class="mb-3">
                         <p class="text-xs font-semibold text-gray-600 mb-2">常用标签</p>
                         <div class="flex flex-wrap gap-2">
                           <button
@@ -725,7 +744,7 @@ const handleClose = () => {
                             {{ tag }}
                           </button>
                         </div>
-                      </div>
+                      </div> -->
 
                       <!-- Custom Tag Input -->
                       <div class="flex gap-2">

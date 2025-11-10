@@ -77,6 +77,7 @@ const formData = ref({
 const metaDataItems = ref<MetaDataItem[]>([])
 const nextId = ref(1)
 const isSubmitting = ref(false)
+const isDragging = ref(false)
 
 // 附件上传组件引用
 const attachmentUploadRef = ref<InstanceType<typeof ProtocolAttachmentUpload>>()
@@ -296,7 +297,7 @@ const generateJSON5WithComments = () => {
   metaDataItems.value.forEach((item, index) => {
     if (item.key) {
       if (item.description) {
-        result += ` //${item.description}\n`
+        result += ` /** ${item.description} */\n`
       }
 
       const parsedValue = parseValue(item.value, item.valueType)
@@ -504,6 +505,127 @@ const handleClose = () => {
   if (!isSubmitting.value) {
     isOpen.value = false
   }
+}
+
+// 处理拖拽进入
+const handleDragEnter = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+  isDragging.value = true
+}
+
+// 处理拖拽经过
+const handleDragOver = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+}
+
+// 处理拖拽离开
+const handleDragLeave = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+  // 只在离开drop zone时重置
+  if (e.target === e.currentTarget) {
+    isDragging.value = false
+  }
+}
+
+// 处理文件拖放
+const handleDrop = async (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+  isDragging.value = false
+
+  const files = e.dataTransfer?.files
+  if (!files || files.length === 0) return
+
+  const file = files[0]
+
+  // 检查文件类型
+  if (!file.name.endsWith('.json')) {
+    showToast('请拖放 .json 格式的文件', 'warning')
+    return
+  }
+
+  try {
+    const text = await file.text()
+    const jsonData = JSON.parse(text)
+
+    // 解析JSON并填充metadata items
+    parseJsonToMetadataItems(jsonData)
+    showToast('JSON文件解析成功', 'success')
+  } catch (error) {
+    console.error('JSON解析失败:', error)
+    showToast(`JSON解析失败: ${error instanceof Error ? error.message : '格式错误'}`, 'error')
+  }
+}
+
+// 解析JSON到metadata items
+const parseJsonToMetadataItems = (jsonData: any) => {
+  // 清空现有items
+  metaDataItems.value = []
+  nextId.value = 1
+
+  // 遍历JSON对象的每个属性
+  Object.entries(jsonData).forEach(([key, value]) => {
+    // 判断值的类型
+    let valueType = 'String'
+    let valueStr = ''
+    let description = ''
+
+    if (typeof value === 'object' && value !== null) {
+      // 检查是否有description字段（JSON5格式）
+      if ('value' in value && 'description' in value) {
+        // JSON5格式: { value: xxx, description: xxx }
+        const v = (value as any).value
+        description = (value as any).description || ''
+
+        if (typeof v === 'boolean') {
+          valueType = 'Boolean'
+          valueStr = v.toString()
+        } else if (typeof v === 'number') {
+          valueType = 'Number'
+          valueStr = v.toString()
+        } else if (Array.isArray(v)) {
+          valueType = 'Array'
+          valueStr = JSON.stringify(v, null, 2)
+        } else if (typeof v === 'object' && v !== null) {
+          valueType = 'Object'
+          valueStr = JSON.stringify(v, null, 2)
+        } else {
+          valueType = 'String'
+          valueStr = String(v)
+        }
+      } else {
+        // 普通对象或数组
+        if (Array.isArray(value)) {
+          valueType = 'Array'
+          valueStr = JSON.stringify(value, null, 2)
+        } else {
+          valueType = 'Object'
+          valueStr = JSON.stringify(value, null, 2)
+        }
+      }
+    } else if (typeof value === 'boolean') {
+      valueType = 'Boolean'
+      valueStr = value.toString()
+    } else if (typeof value === 'number') {
+      valueType = 'Number'
+      valueStr = value.toString()
+    } else {
+      valueType = 'String'
+      valueStr = String(value)
+    }
+
+    // 添加到metadata items
+    metaDataItems.value.push({
+      id: nextId.value++,
+      key,
+      valueType,
+      value: valueStr,
+      description
+    })
+  })
 }
 
 // 获取placeholder
@@ -754,32 +876,60 @@ const getPlaceholder = (type: string) => {
 
                   <!-- 协议内容信息部分 -->
                   <div class="space-y-6">
-                    <div class="flex items-center justify-between">
-                      <h4 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                        <span class="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded"></span>
-                        协议主体 (Body)
-                      </h4>
-                      <button
-                        type="button"
-                        @click="addMetaDataItem"
-                        class="add-item-btn"
-                      >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        添加字段
-                      </button>
+                    <div class="sticky-header-section">
+                      <div class="flex items-center justify-between">
+                        <h4 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                          <span class="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded"></span>
+                          协议主体 (Body)
+                        </h4>
+                        <button
+                          type="button"
+                          @click="addMetaDataItem"
+                          class="add-item-btn"
+                        >
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                          </svg>
+                          添加字段
+                        </button>
+                      </div>
                     </div>
 
                     <!-- MetaData Items -->
-                    <div v-if="metaDataItems.length === 0" class="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                    <div
+                      v-if="metaDataItems.length === 0"
+                      class="drop-zone"
+                      :class="{ 'drop-zone-active': isDragging }"
+                      @dragenter="handleDragEnter"
+                      @dragover="handleDragOver"
+                      @dragleave="handleDragLeave"
+                      @drop="handleDrop"
+                    >
                       <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       <p class="mt-4">暂无字段，点击"添加字段"按钮开始创建</p>
+                      <p class="mt-2 text-sm text-purple-500 font-medium">或拖放 .json 文件到此处快速导入</p>
                     </div>
 
-                    <div v-else class="space-y-4">
+                    <div
+                      v-else
+                      class="space-y-4 relative"
+                      @dragenter="handleDragEnter"
+                      @dragover="handleDragOver"
+                      @dragleave="handleDragLeave"
+                      @drop="handleDrop"
+                    >
+                      <!-- Drag overlay -->
+                      <div v-if="isDragging" class="drag-overlay">
+                        <div class="drag-overlay-content">
+                          <svg class="w-16 h-16 text-purple-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          <p class="text-xl font-semibold text-gray-900">释放以导入 JSON 文件</p>
+                          <p class="text-sm text-gray-500 mt-2">将自动解析并填充字段</p>
+                        </div>
+                      </div>
                       <div
                         v-for="(item, index) in metaDataItems"
                         :key="item.id"
@@ -829,7 +979,7 @@ const getPlaceholder = (type: string) => {
                           </div>
 
                           <div class="form-item">
-                            <label class="form-label-sm">Value</label>
+                            <label class="form-label-sm">Value(示例值)</label>
                             <!-- Boolean类型使用单选按钮 -->
                             <div v-if="item.valueType === 'Boolean'" class="flex gap-4 mt-2">
                               <label class="flex items-center gap-2 cursor-pointer">
@@ -865,12 +1015,12 @@ const getPlaceholder = (type: string) => {
                           </div>
 
                           <div class="form-item">
-                            <label class="form-label-sm">描述 (Description)</label>
+                            <label class="form-label-sm">注释 (Note)</label>
                             <input
                               v-model="item.description"
                               type="text"
                               class="form-input-sm"
-                              placeholder="字段描述，将作为注释显示"
+                              placeholder="该字段将作为注释显示"
                             />
                           </div>
                         </div>
@@ -1006,27 +1156,70 @@ const getPlaceholder = (type: string) => {
   @apply text-white text-sm font-mono p-4 overflow-x-auto whitespace-pre-wrap;
   background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
   line-height: 1.5;
-  
+
   /* JSON 语法高亮 */
   color: #e5e7eb;
-  
+
+  /* 允许用户选中文本 */
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  cursor: text;
+
   /* 滚动条样式 */
   &::-webkit-scrollbar {
     height: 8px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: #374151;
     border-radius: 4px;
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: #6b7280;
     border-radius: 4px;
-    
+
     &:hover {
       background: #9ca3af;
     }
+  }
+}
+
+.sticky-header-section {
+  @apply sticky top-0 z-10 bg-white py-3 mb-4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-left: -1.5rem;
+  margin-right: -1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.drop-zone {
+  @apply text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 transition-all;
+
+  &.drop-zone-active {
+    @apply border-purple-500 bg-purple-50 scale-105;
+    box-shadow: 0 0 20px rgba(147, 51, 234, 0.3);
+  }
+}
+
+.drag-overlay {
+  @apply absolute inset-0 bg-white/95 backdrop-blur-sm rounded-lg border-2 border-dashed border-purple-500 flex items-center justify-center z-20;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.drag-overlay-content {
+  @apply flex flex-col items-center justify-center;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.9;
   }
 }
 </style>
