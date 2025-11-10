@@ -48,7 +48,7 @@
 
         <!-- App Cards Grid -->
         <div class="apps-grid" v-if="metaAppList.list?.length">
-          <div class="app-card" v-for="item in metaAppList.list" :key="item.id">
+          <div class="app-card" v-for="item in metaAppList.list" :key="item.id" >
             <!-- 卡片预览图 -->
             <div class="card-preview">
               <img class="app-cover" :src="getCoverUrl(item.contentSummary?.coverImg)" alt="">
@@ -100,12 +100,13 @@
                 </div>
 
                 <div class="action-buttons ">
-                  <button class="btn-download rounded-full" @click="handleDownload(item)">
+                  <button class="btn-download rounded-full" @click.stop="handleDownload(item)">
                     <span>
                       下载
                     </span>
                   </button>
-                  <button class="btn-run rounded-full" @click="handleRun">
+                 
+                  <button class="btn-run rounded-full" @click="handleRun(item)">
                     <span>
                       运行
                     </span>
@@ -349,9 +350,38 @@ const loadUserInfo = async (app: PinInfo) => {
     }
   }
 
-  // 处理运行按钮点击事件
-  function handleRun() {
-    showToast('功能开发中，敬请期待', 'info')
+
+
+
+   // 处理运行按钮点击事件
+  function handleRun(item: any) {
+    // 分析 contentSummary
+    
+    const contentSummary = item.contentSummary
+    if (!contentSummary) {
+      showToast('暂无内容信息', 'warning')
+      return
+    }
+
+    // 检查 contentType
+    if (contentSummary?.contentType === 'text/html') {
+      // 提取 content
+      const content = contentSummary.content
+
+      if (content && content.startsWith('metafile://')) {
+        // 提取 PINID
+        const pinId = content.replace('metafile://', '')
+        console.log('提取的 PINID:', pinId)
+
+        // 新开窗口跳转
+        window.open(`https://man.metaid.io/content/${pinId}`, '_blank')
+      } else {
+        showToast('内容格式不支持', 'warning')
+      }
+    } else {
+      // 非 text/html 类型
+      showToast('源码解析功能开发中，敬请期待', 'info')
+    }
   }
 
   function openSubmitModal() {
@@ -549,6 +579,7 @@ onMounted(async () => {
     .app-cover{
       width: 100%;
       height: 100%;
+      object-fit: contain;
      
       
     }

@@ -6,9 +6,14 @@ const routes: Array<RouteRecordRaw> = [
     path: '/',
     name: 'MetaApp',
     component: () => import('@/views/MetaApp.vue'),
-    meta: { 
+    meta: {
       navKey: 'metaapp'
     }
+  },
+  {
+    path: '/metaapp/:pinid',
+    name: 'MetaAppDetail',
+    component: () => import('@/views/MetaAppDetail.vue'),
   },
    {
     path: '/metaprotocol',
