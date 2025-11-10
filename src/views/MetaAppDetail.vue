@@ -61,7 +61,7 @@ onMounted(async () => {
           console.log('提取的 PINID:', extractedPinId)
 
           // 新开窗口跳转
-          window.open(`https://man.metaid.io/content/${extractedPinId}`, '_blank')
+          window.open(`https://man.metaid.io/content/${extractedPinId}`, '_self')
           showToast('正在打开 MetaApp...', 'success')
         } else {
           // content 不是 metafile:// 格式，但仍然是 text/html
