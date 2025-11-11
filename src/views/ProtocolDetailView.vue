@@ -248,6 +248,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useCreateProtocols } from '@/hooks/use-create-protocols'
 import { useToast } from '@/components/Toast/useToast'
 import { type PinDetail, getPinDetail } from '@/api/ManV2'
+import { getUserInfoByAddress } from "@/api/man";
 import { formatDateTime } from "@/utils/format";
 import { useUserStore } from '@/stores/user'
 import EditProtocolModal from '@/components/EditProtocolModal/EditProtocolModal.vue'
@@ -514,7 +515,7 @@ onMounted(async () => {
         protocolTitle.value=contentSummary?.title
         protocolContentType.value=contentSummary?.protocolContentType
         protocolVersion.value=contentSummary?.version
-        protocolAuthor.value=contentSummary?.authors
+        protocolAuthor.value=(await getUserInfoByAddress(detail.creator || detail.address)).name || detail.metaid.slice(0,6)
         protocolName.value=contentSummary?.protocolName
         protocolPath.value=contentSummary?.path
       } catch (e) {

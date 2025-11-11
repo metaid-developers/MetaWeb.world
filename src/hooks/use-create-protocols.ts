@@ -147,13 +147,13 @@ async function createPayComment(metaidData:Omit<MetaidData, 'revealAddr'>,option
 async function uploadProtocol(metaidData:Omit<MetaidData, 'revealAddr'>,options:CreatePinOptions = {}) {
     
     registerProtocolRule(ProtocolCollection[NodeName.MetaProtocol].protocol, {
-        pattern: new RegExp(`/protocols/testmetaprotocol`, 'i'),
+        pattern: new RegExp(`/protocols/metaprotocol`, 'i'),
         handler: async (metaidData) => {
         console.log('📋 [Metaprotocols] Processing metaprotocol protocol')
         return await createPin({
         operation: metaidData.operation || 'create',
         body: metaidData.body,
-        path: metaidData.path || `/protocols/testmetaprotocol`,
+        path: metaidData.path || `/protocols/metaprotocol`,
         contentType: metaidData.contentType || 'application/json',
         encryption: metaidData.encryption || '0',
         version: metaidData.version || '1.0.0',

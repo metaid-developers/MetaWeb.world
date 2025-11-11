@@ -130,7 +130,7 @@ async function fetchProtocols(page: number = 1) {
   loading.value = true
   try {
     const response = await getPinListByPath({
-      path: '/protocols/testmetaprotocol',
+      path: '/protocols/metaprotocol',
       cursor: page - 1,
       size: pageSize.value
     })

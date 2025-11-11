@@ -423,7 +423,7 @@ const handleSubmit = async () => {
     const protocolContent = generateJSON5WithComments()
     
     const metaidData = {
-      path: `/protocols/testmetaprotocol`,
+      path: `/protocols/metaprotocol`,
       body: {
         title: formData.value.title,
         path:`/protocols/${formData.value.protocolName.trim().toLocaleLowerCase()}`,
