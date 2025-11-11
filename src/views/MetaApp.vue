@@ -610,6 +610,7 @@ onMounted(async () => {
       height: 48px;
       border-radius: 8px;
       margin-right: 10px;
+      object-fit: contain;
     }
     .version{
       margin-top: 3px;

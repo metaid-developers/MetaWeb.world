@@ -12,7 +12,19 @@
       <div class="body-box">
         <!-- 协议头部 -->
         <div class="protocol-header">
-          <h1 class="protocol-title">{{ protocolName }}: {{ protocolTitle }}</h1>
+          <div class="header-top">
+            <h1 class="protocol-title">{{ protocolName }}: {{ protocolTitle }}</h1>
+            <button
+              v-if="isCreator"
+              @click="showEditModal = true"
+              class="edit-protocol-btn"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              编辑协议
+            </button>
+          </div>
           <div class="protocol-meta">
             <span class="meta-item">
               <svg class="meta-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -220,16 +232,25 @@
         </div>
       </div>
     </div>
+
+    <!-- 编辑协议弹窗 -->
+    <EditProtocolModal
+      v-model="showEditModal"
+      :protocolData="protocolDetail"
+      @success="handleEditSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, type Ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, type Ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useCreateProtocols } from '@/hooks/use-create-protocols'
 import { useToast } from '@/components/Toast/useToast'
 import { type PinDetail, getPinDetail } from '@/api/ManV2'
 import { formatDateTime } from "@/utils/format";
+import { useUserStore } from '@/stores/user'
+import EditProtocolModal from '@/components/EditProtocolModal/EditProtocolModal.vue'
 // 接口定义
 interface Comment {
   id: string
@@ -250,9 +271,10 @@ interface Reply {
 }
 
 const route = useRoute()
+const router = useRouter()
 const { createPayLike, createPayComment } = useCreateProtocols()
 const { showToast } = useToast()
-
+const userStore=useUserStore()
 // 协议基本信息
 const protocolId = ref('')
 const protocolTitle = ref('')
@@ -265,6 +287,26 @@ const protocolPath=ref('')
 const protocolDetail:Ref<PinDetail>=ref()
 
 const protocolContent = ref()
+
+// 编辑协议弹窗状态
+const showEditModal = ref(false)
+
+// 计算属性：判断当前用户是否是协议创建者
+const isCreator = computed(() => {
+  if (!protocolDetail.value || !userStore.last?.address) {
+    return false
+  }
+  return protocolDetail.value.creator?.toLowerCase() === userStore.last.address?.toLowerCase()
+})
+
+// 编辑成功后的处理
+const handleEditSuccess = () => {
+  showToast('协议编辑成功！正在刷新...', 'success')
+  // 延迟刷新页面
+  setTimeout(() => {
+    router.go(0)
+  }, 1500)
+}
 
 // 点赞相关状态
 const isLiked = ref(false)
@@ -578,21 +620,69 @@ onMounted(async () => {
   }
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
 .protocol-title {
   font-size: 28px;
   font-weight: 700;
   color: #111827;
-  margin: 0 0 16px 0;
+  margin: 0;
   line-height: 1.3;
+  flex: 1;
 
   @media (max-width: 768px) {
     font-size: 24px;
-    margin-bottom: 12px;
   }
 
   @media (max-width: 480px) {
     font-size: 20px;
-    margin-bottom: 10px;
+  }
+}
+
+.edit-protocol-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  @media (max-width: 768px) {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  @media (max-width: 480px) {
+    width: 100%;
+    justify-content: center;
   }
 }
 

@@ -640,12 +640,18 @@ const getSelectedFiles = () => {
     .map(item => item.file)
 }
 
+// 添加已存在的附件（用于编辑模式回填）
+const addExistingAttachments = (items: SelectedTxidItem[]) => {
+  selectedItems.value.push(...items)
+}
+
 // 暴露方法给父组件
 defineExpose({
   uploadFilesToChain,
   getSelectedFiles,
   clearFiles: clearAllFiles,
   clearAllItems,
+  addExistingAttachments,
   selectedFiles: computed(() => selectedFiles.value),
   selectedItems: computed(() => selectedItems.value)
 })

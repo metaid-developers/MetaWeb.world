@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot, Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { useCreateProtocols } from '@/hooks/use-create-protocols'
 import { useToast } from '@/components/Toast/useToast'
@@ -9,20 +10,33 @@ import ProtocolAttachmentUpload from '@/components/ProtocolAttachmentUpload/Prot
 
 interface Props {
   modelValue: boolean
+  protocolData: any
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
+  (e: 'success'): void
 }>()
 
 const { uploadProtocol } = useCreateProtocols()
 const { showToast } = useToast()
-const userStore=useUserStore()
+const userStore = useUserStore()
+const route = useRoute()
 
 const isOpen = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
+})
+
+// 版本历史记录
+const modifyHistory = computed(() => {
+  return props.protocolData?.modify_history || []
+})
+
+// 是否显示版本历史面板
+const hasVersionHistory = computed(() => {
+  return modifyHistory.value.length > 0
 })
 
 // MIME类型选项
@@ -68,16 +82,22 @@ const formData = ref({
   protocolName: '',
   version: '1.0.0',
   intro: '',
-  protocolAttachments: [] as string[], // 改为数组类型
+  protocolAttachments: [] as string[],
   metadata: '',
-  protocolContentType: mimeTypes[1], // 默认 application/json5
-  protocolEncoding: encodingTypes[0], // 默认 utf-8
+  protocolContentType: mimeTypes[1],
+  protocolEncoding: encodingTypes[0],
 })
+
+// 保存原始版本号（用于body.version）
+const originalVersion = ref('1.0.0')
+// 自增后的版本号（用于metaidData.version）
+const incrementedVersion = ref('1.0.1')
 
 const metaDataItems = ref<MetaDataItem[]>([])
 const nextId = ref(1)
 const isSubmitting = ref(false)
 const isDragging = ref(false)
+const showVersionHistory = ref(false)
 
 // 附件上传组件引用
 const attachmentUploadRef = ref<InstanceType<typeof ProtocolAttachmentUpload>>()
@@ -86,20 +106,232 @@ const attachmentUploadRef = ref<InstanceType<typeof ProtocolAttachmentUpload>>()
 const showSuccessModal = ref(false)
 const successTxid = ref('')
 
+// 处理文件选择成功
+const handleFilesSelected = (files: any[]) => {
+  console.log('文件选择成功:', files)
+}
+
+// 处理文件移除
+const handleFilesRemoved = (files: any[]) => {
+  console.log('文件已移除:', files)
+}
+
+// 版本号自增逻辑
+const incrementVersion = (currentVersion: string): string => {
+  const parts = currentVersion.split('.')
+  if (parts.length !== 3) return '1.0.1'
+
+  let [major, minor, patch] = parts.map(Number)
+
+  // 增加 patch 版本号
+  patch++
+
+  // 如果 patch 达到 10，重置为 0 并增加 minor
+  if (patch >= 10) {
+    patch = 0
+    minor++
+  }
+
+  // 如果 minor 达到 10，重置为 0 并增加 major
+  if (minor >= 10) {
+    minor = 0
+    major++
+  }
+
+  return `${major}.${minor}.${patch}`
+}
+
+// 解析协议内容并填充表单
+const parseProtocolContent = (content: string) => {
+  if (!content) return
+
+  try {
+    // 解析注释和JSON内容
+    const lines = content.split('\n')
+    const jsonLines: string[] = []
+    const commentMap = new Map<string, string>() // key -> comment
+    let currentComment = ''
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+
+      // 检查是否是块注释 /** comment */
+      if (trimmed.startsWith('/**') && trimmed.endsWith('*/')) {
+        currentComment = trimmed.slice(3, -2).trim()
+        continue // 不加入jsonLines
+      }
+
+      // 检查是否是单行注释 // comment
+      if (trimmed.startsWith('//')) {
+        currentComment = trimmed.slice(2).trim()
+        continue // 不加入jsonLines
+      }
+
+      // 如果这一行包含key，保存之前的注释
+      if (trimmed.includes(':') && !trimmed.startsWith('*')) {
+        const keyMatch = trimmed.match(/["']?(\w+)["']?\s*:/)
+        if (keyMatch) {
+          const key = keyMatch[1]
+          if (currentComment) {
+            commentMap.set(key, currentComment)
+            currentComment = '' // 清空已使用的注释
+          }
+        }
+      }
+
+      // 跳过多行注释中间的行 (以 * 开头但不是 /** 或 */)
+      if (trimmed.startsWith('*') && !trimmed.startsWith('/**')) {
+        continue
+      }
+
+      jsonLines.push(line)
+    }
+
+    const jsonStr = jsonLines.join('\n')
+    const parsed = JSON.parse(jsonStr)
+
+    // 清空现有items
+    metaDataItems.value = []
+    nextId.value = 1
+
+    // 解析并填充
+    Object.entries(parsed).forEach(([key, value]: [string, any]) => {
+      let valueType = 'String'
+      let valueStr = ''
+      let description = commentMap.get(key) || '' // 从commentMap获取注释
+
+      if (typeof value === 'boolean') {
+        valueType = 'Boolean'
+        valueStr = value.toString()
+      } else if (typeof value === 'number') {
+        valueType = 'Number'
+        valueStr = value.toString()
+      } else if (Array.isArray(value)) {
+        valueType = 'Array'
+        valueStr = JSON.stringify(value, null, 2)
+      } else if (typeof value === 'object' && value !== null) {
+        valueType = 'Object'
+        valueStr = JSON.stringify(value, null, 2)
+      } else {
+        valueType = 'String'
+        valueStr = String(value)
+      }
+
+      metaDataItems.value.push({
+        id: nextId.value++,
+        key,
+        valueType,
+        value: valueStr,
+        description
+      })
+    })
+  } catch (error) {
+    console.error('解析协议内容失败:', error)
+  }
+}
+
+// 监听协议数据变化，自动填充表单
+watch(() => props.modelValue, (data) => {
+  if (!data) return
+
+  try {
+    let contentSummary: any = {}
+
+    if (props.protocolData.contentSummary) {
+      if (typeof props.protocolData.contentSummary === 'object') {
+        contentSummary = props.protocolData.contentSummary
+      } else if (typeof props.protocolData.contentSummary === 'string') {
+        contentSummary = JSON.parse(props.protocolData.contentSummary)
+      }
+    }
+
+    // 填充基本信息
+    formData.value.title = contentSummary.title || ''
+    formData.value.protocolName = contentSummary.protocolName || ''
+    formData.value.intro = contentSummary.intro || ''
+
+    // 保存原始版本号（用于body）
+    originalVersion.value = contentSummary.version || '1.0.0'
+    // 计算自增后的版本号（用于metaidData外层）
+    incrementedVersion.value = incrementVersion(contentSummary.version || '1.0.0')
+    // formData中显示自增后的版本号
+    formData.value.version = incrementedVersion.value
+
+    // 设置内容类型
+    const contentType = mimeTypes.find(t => t.value === contentSummary.protocolContentType)
+    if (contentType) {
+      formData.value.protocolContentType = contentType
+    }
+
+    // 解析协议内容
+    if (contentSummary.protocolContent) {
+      parseProtocolContent(contentSummary.protocolContent)
+    }
+
+    // 填充 metadata
+    if (contentSummary.metadata) {
+      formData.value.metadata = typeof contentSummary.metadata === 'string'
+        ? contentSummary.metadata
+        : JSON.stringify(contentSummary.metadata, null, 2)
+    }
+
+    // 保存 protocolAttachments 到 formData 并回填到UI
+    if (contentSummary.protocolAttachments && Array.isArray(contentSummary.protocolAttachments)) {
+      formData.value.protocolAttachments = contentSummary.protocolAttachments
+
+      // 延迟处理，等待组件挂载
+      nextTick(() => {
+        if (attachmentUploadRef.value && contentSummary.protocolAttachments.length > 0) {
+          // 将 metafile://PINID 或 metacode://PINID 格式转换为组件可识别的 SelectedTxidItem
+          const attachmentItems = contentSummary.protocolAttachments
+            .map((attachment: string) => {
+              // 解析 prefix 和 txid
+              // 格式: metafile://9efda111d8...i0 或 metacode://xxxxx
+              const match = attachment.match(/^(metafile:\/\/|metacode:\/\/)(.+)$/)
+
+              if (match) {
+                const prefix = match[1]
+                let txid = match[2]
+
+                // 移除末尾的i0（如果有）
+                if (txid.endsWith('i0')) {
+                  txid = txid.slice(0, -2)
+                }
+
+                return {
+                  type: 'txid' as const,
+                  prefix: prefix,
+                  txid: txid,
+                  fullPath: attachment
+                }
+              }
+
+              // 如果格式不匹配，返回null
+              return null
+            })
+            .filter((item: any): item is { type: 'txid'; prefix: string; txid: string; fullPath: string } => item !== null)
+
+          // 调用组件的addExistingAttachments方法来回填附件
+          if (attachmentUploadRef.value.addExistingAttachments && attachmentItems.length > 0) {
+            attachmentUploadRef.value.addExistingAttachments(attachmentItems)
+          }
+        }
+      })
+    }
+  } catch (error) {
+    console.error('填充表单数据失败:', error)
+  }
+}, { immediate: true, deep: true })
+
 // 计算属性：判断表单是否有效
 const isFormValid = computed(() => {
-  // 1. 必填字段不能为空
   if (!formData.value.title.trim()) return false
   if (!formData.value.protocolName.trim()) return false
-
-  // 2. 协议内容（MetaData）必须不为空
   if (metaDataItems.value.length === 0) return false
 
-  // 3. 每个 MetaData 项的必填字段必须填写
   for (const item of metaDataItems.value) {
-    // Key 不能为空
     if (!item.key.trim()) return false
-    // Value 已改为非必填，不再验证
   }
 
   return true
@@ -116,7 +348,6 @@ const addMetaDataItem = async () => {
     description: ''
   })
 
-  // 等待 DOM 更新后滚动到新添加的元素
   await nextTick()
   const newElement = document.querySelector(`[data-item-id="${newId}"]`)
   if (newElement) {
@@ -134,27 +365,13 @@ const removeMetaDataItem = (id: number) => {
 
 // 处理Value类型变化
 const handleValueTypeChange = (item: MetaDataItem) => {
-  // 当切换到Boolean类型且当前值为空时，设置默认值为'false'
   if (item.valueType === 'Boolean' && !item.value) {
     item.value = 'false'
   }
 }
 
-// 处理文件选择成功
-const handleFilesSelected = (files: any[]) => {
-  console.log('文件选择成功:', files)
-  // 可以在这里添加额外的处理逻辑
-}
-
-// 处理文件移除
-const handleFilesRemoved = (files: any[]) => {
-  console.log('文件已移除:', files)
-  // 可以在这里添加额外的处理逻辑
-}
-
 // 解析值根据类型
 const parseValue = (value: string, type: string): any => {
-  // 如果 value 为空，根据类型返回默认值
   if (!value || !value.trim()) {
     switch (type) {
       case 'String':
@@ -175,7 +392,6 @@ const parseValue = (value: string, type: string): any => {
   try {
     switch (type) {
       case 'Boolean':
-        // 解析布尔值
         const lowerValue = value.trim().toLowerCase()
         return lowerValue === 'true' || lowerValue === '1'
       case 'Number':
@@ -185,57 +401,27 @@ const parseValue = (value: string, type: string): any => {
         }
         return num
       case 'Object':
-        // 尝试解析为JSON对象
         try {
-          // 首先尝试标准JSON解析
           const parsedObj = JSON.parse(value)
           if (typeof parsedObj !== 'object' || Array.isArray(parsedObj)) {
             throw new Error('Not a valid object')
           }
           return parsedObj
         } catch (jsonError) {
-          // 如果标准JSON解析失败，尝试修复常见的JSON格式问题
           try {
-            // 修复key没有双引号的问题，包括嵌套对象
             let fixedJson = value.trim()
-            
-            // 递归修复所有key的双引号问题
-            const fixKeys = (str: string): string => {
-              // 匹配 key: 模式（key可能是字母数字下划线）
-              return str.replace(/(\w+):/g, '"$1":')
-            }
-            
-            fixedJson = fixKeys(fixedJson)
+            fixedJson = fixedJson.replace(/(\w+):/g, '"$1":')
             const parsedObj = JSON.parse(fixedJson)
-            
+
             if (typeof parsedObj !== 'object' || Array.isArray(parsedObj)) {
               throw new Error('Not a valid object')
             }
             return parsedObj
           } catch (fixError) {
-            // 如果还是失败，尝试更复杂的修复
-            try {
-              // 处理更复杂的嵌套结构
-              let complexFixed = value.trim()
-              
-              // 修复所有可能的key格式问题
-              complexFixed = complexFixed.replace(/(\w+):/g, '"$1":')
-              
-              // 修复字符串值没有引号的问题（简单情况）
-              complexFixed = complexFixed.replace(/:\s*([^",{\[\s][^,}\]]*?)([,}])/g, ': "$1"$2')
-              
-              const parsedObj = JSON.parse(complexFixed)
-              if (typeof parsedObj !== 'object' || Array.isArray(parsedObj)) {
-                throw new Error('Not a valid object')
-              }
-              return parsedObj
-            } catch (complexError) {
-              throw new Error('Invalid object format')
-            }
+            throw new Error('Invalid object format')
           }
         }
       case 'Array':
-        // 尝试解析为JSON数组
         try {
           const parsedArr = JSON.parse(value)
           if (!Array.isArray(parsedArr)) {
@@ -243,17 +429,9 @@ const parseValue = (value: string, type: string): any => {
           }
           return parsedArr
         } catch (jsonError) {
-          // 如果标准JSON解析失败，尝试修复常见的JSON格式问题
           try {
-            // 修复key没有双引号的问题（如果数组包含对象）
             let fixedJson = value.trim()
-            
-            // 修复所有可能的key格式问题
             fixedJson = fixedJson.replace(/(\w+):/g, '"$1":')
-            
-            // 修复字符串值没有引号的问题（简单情况）
-            fixedJson = fixedJson.replace(/:\s*([^",{\[\s][^,}\]]*?)([,}])/g, ': "$1"$2')
-            
             const parsedArr = JSON.parse(fixedJson)
             if (!Array.isArray(parsedArr)) {
               throw new Error('Not a valid array')
@@ -268,26 +446,9 @@ const parseValue = (value: string, type: string): any => {
         return value.trim()
     }
   } catch (error) {
-    // 如果解析失败，返回原始字符串值
     console.warn(`Failed to parse value as ${type}:`, error)
     return value.trim()
   }
-}
-
-// 生成JSON5格式的协议内容
-const generateProtocolContent = () => {
-  const content: any = {}
-
-  metaDataItems.value.forEach(item => {
-    if (item.key) {
-      content[item.key] = {
-        value: parseValue(item.value, item.valueType),
-        description: item.description
-      }
-    }
-  })
-
-  return content
 }
 
 // 生成带注释的JSON5字符串
@@ -301,48 +462,35 @@ const generateJSON5WithComments = () => {
       }
 
       const parsedValue = parseValue(item.value, item.valueType)
-      
-      // 根据value类型生成正确的JSON格式
+
       let valueStr = ''
       switch (item.valueType) {
         case 'String':
-          // 字符串类型：确保用双引号包围
           valueStr = `"${parsedValue}"`
           break
         case 'Number':
-          // 数字类型：直接显示，不需要引号
           valueStr = parsedValue.toString()
           break
         case 'Boolean':
-          // 布尔类型：直接显示true或false，不需要引号
           valueStr = parsedValue ? 'true' : 'false'
           break
         case 'Object':
-          // 对象类型：格式化为标准JSON格式
           try {
-            // 使用JSON.stringify重新格式化，确保key有双引号
             const objStr = JSON.stringify(parsedValue, null, 2)
-            // 为每行添加适当的缩进
             valueStr = objStr.split('\n').map((line, i) => i === 0 ? line : '  ' + line).join('\n')
           } catch (error) {
-            // 如果解析失败，当作字符串处理
             valueStr = `"${item.value}"`
           }
           break
         case 'Array':
-          // 数组类型：格式化为标准JSON格式
           try {
-            // 使用JSON.stringify重新格式化，确保格式正确
             const arrStr = JSON.stringify(parsedValue, null, 2)
-            // 为每行添加适当的缩进
             valueStr = arrStr.split('\n').map((line, i) => i === 0 ? line : '  ' + line).join('\n')
           } catch (error) {
-            // 如果解析失败，当作字符串处理
             valueStr = `"${item.value}"`
           }
           break
         default:
-          // 默认情况：当作字符串处理
           valueStr = `"${parsedValue}"`
       }
 
@@ -361,29 +509,26 @@ const generateJSON5WithComments = () => {
 
 // 提交表单
 const handleSubmit = async () => {
-  // 验证必填字段
   if (!formData.value.title.trim()) {
     showToast('请填写标题', 'warning')
     return
   }
+
   if (!formData.value.protocolName.trim()) {
     showToast('请填写协议名称', 'warning')
     return
   }
 
-  // 验证协议内容不为空
   if (metaDataItems.value.length === 0) {
     showToast('协议内容不能为空，请至少添加一个字段', 'warning')
     return
   }
 
-  // 验证Body
   for (const item of metaDataItems.value) {
     if (!item.key.trim()) {
       showToast('请填写所有Body项的Key', 'warning')
       return
     }
-    // Value 已改为非必填，不再验证
   }
 
   try {
@@ -391,44 +536,53 @@ const handleSubmit = async () => {
 
     // 先上传文件到链上获取路径
     let parsedAttachments: string[] = []
+
+    // 如果有附件（包括原有的和新上传的），统一处理
     if (attachmentUploadRef.value && attachmentUploadRef.value.selectedItems.length > 0) {
-      showToast('正在上传附件到链上...', 'info')
+      // 检查是否有需要上传的文件
+      const hasFilesToUpload = attachmentUploadRef.value.selectedItems.some((item: any) => item.type === 'file')
+
+      if (hasFilesToUpload) {
+        showToast('正在上传附件到链上...', 'info')
+      }
 
       try {
-        // 调用附件上传组件的上传方法
+        // uploadFilesToChain会处理所有selectedItems：
+        // - txid类型：直接使用fullPath
+        // - file类型：上传到链上并返回metafile://路径
         const paths = await attachmentUploadRef.value.uploadFilesToChain()
-
-        // paths 已经是完整路径格式，如: ["metafile://txidi0", "metacode://txidi0"]
         parsedAttachments = paths
 
-        showToast(`附件处理成功，共 ${paths.length} 个附件`, 'success')
+        if (hasFilesToUpload) {
+          const fileCount = attachmentUploadRef.value.selectedItems.filter((item: any) => item.type === 'file').length
+          showToast(`附件处理成功，共上传 ${fileCount} 个新文件`, 'success')
+        }
       } catch (error) {
         showToast(`附件处理失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error')
         return
       }
     }
 
-    // 解析 metadata (可以是任意类型)
+    // 解析 metadata
     let parsedMetadata: any = ''
     if (formData.value.metadata.trim()) {
       try {
         parsedMetadata = JSON.parse(formData.value.metadata)
       } catch (error) {
-        // 如果无法解析为JSON,则当作字符串处理
         parsedMetadata = formData.value.metadata
       }
     }
 
     // 构建协议数据
     const protocolContent = generateJSON5WithComments()
-    
+
     const metaidData = {
-      path: `/protocols/testmetaprotocol`,
+      path: `@${props.protocolData?.id}`,
       body: {
         title: formData.value.title,
-        path:`/protocols/${formData.value.protocolName.trim().toLocaleLowerCase()}`,
+        path: `/protocols/${formData.value.protocolName.trim().toLowerCase()}`,
         version: formData.value.version,
-        authors:userStore.last.name || userStore.last.metaid.slice(0,6),
+        authors: userStore.last.name || userStore.last.metaid.slice(0, 6),
         intro: formData.value.intro,
         protocolName: formData.value.protocolName,
         protocolAttachments: parsedAttachments,
@@ -438,65 +592,38 @@ const handleSubmit = async () => {
       },
       contentType: 'application/json',
       encoding: 'utf-8' as const,
-      version: '1.0.0',
-      operation: 'create' as const
+      version: originalVersion.value , // 使用自增后的版本号
+      operation: 'modify' as const
     }
 
-    console.log('提交协议数据:', metaidData)
-    const options={
-      serialAction:'finish' as const,
+    console.log('提交编辑协议数据:', metaidData)
+    const options = {
+      serialAction: 'finish' as const,
     }
-    
-    // 调用上链方法
-    const result = await uploadProtocol(metaidData,options)
-    
-    console.log('协议上链结果:', result)
 
-    // 提取 txid
+    const result = await uploadProtocol(metaidData, options)
+
+    console.log('协议编辑上链结果:', result)
+
     const txid = result?.txid || result?.txids?.[0]
 
-    // 重置表单并关闭提交弹窗
-    resetForm()
     isOpen.value = false
+    emit('success')
 
-    // 显示成功提示
-    showToast('协议提交成功！', 'success')
+    showToast('协议编辑成功！', 'success')
 
-    // 如果有 txid，显示成功弹窗
     if (txid) {
       successTxid.value = txid
       showSuccessModal.value = true
 
-      // 在控制台输出信息
-      console.log('✅ 协议已成功提交到链上')
+      console.log('✅ 协议编辑已成功提交到链上')
       console.log('🔗 TxID:', txid)
     }
   } catch (error) {
-    console.error('提交协议失败:', error)
-    showToast(`提交失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error')
+    console.error('编辑协议失败:', error)
+    showToast(`编辑失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error')
   } finally {
     isSubmitting.value = false
-  }
-}
-
-// 重置表单
-const resetForm = () => {
-  formData.value = {
-    title: '',
-    protocolName: '',
-    version: '1.0.0',
-    intro: '',
-    protocolAttachments: [], // 重置为空数组
-    metadata: '',
-    protocolContentType: mimeTypes[1],
-    protocolEncoding: encodingTypes[0],
-  }
-  metaDataItems.value = []
-  nextId.value = 1
-  
-  // 清空附件上传组件
-  if (attachmentUploadRef.value) {
-    attachmentUploadRef.value.clearFiles()
   }
 }
 
@@ -507,30 +634,26 @@ const handleClose = () => {
   }
 }
 
-// 处理拖拽进入
+// 拖拽处理
 const handleDragEnter = (e: DragEvent) => {
   e.preventDefault()
   e.stopPropagation()
   isDragging.value = true
 }
 
-// 处理拖拽经过
 const handleDragOver = (e: DragEvent) => {
   e.preventDefault()
   e.stopPropagation()
 }
 
-// 处理拖拽离开
 const handleDragLeave = (e: DragEvent) => {
   e.preventDefault()
   e.stopPropagation()
-  // 只在离开drop zone时重置
   if (e.target === e.currentTarget) {
     isDragging.value = false
   }
 }
 
-// 处理文件拖放
 const handleDrop = async (e: DragEvent) => {
   e.preventDefault()
   e.stopPropagation()
@@ -541,7 +664,6 @@ const handleDrop = async (e: DragEvent) => {
 
   const file = files[0]
 
-  // 检查文件类型
   if (!file.name.endsWith('.json')) {
     showToast('请拖放 .json 格式的文件', 'warning')
     return
@@ -551,7 +673,6 @@ const handleDrop = async (e: DragEvent) => {
     const text = await file.text()
     const jsonData = JSON.parse(text)
 
-    // 解析JSON并填充metadata items
     parseJsonToMetadataItems(jsonData)
     showToast('JSON文件解析成功', 'success')
   } catch (error) {
@@ -560,23 +681,17 @@ const handleDrop = async (e: DragEvent) => {
   }
 }
 
-// 解析JSON到metadata items
 const parseJsonToMetadataItems = (jsonData: any) => {
-  // 清空现有items
   metaDataItems.value = []
   nextId.value = 1
 
-  // 遍历JSON对象的每个属性
   Object.entries(jsonData).forEach(([key, value]) => {
-    // 判断值的类型
     let valueType = 'String'
     let valueStr = ''
     let description = ''
 
     if (typeof value === 'object' && value !== null) {
-      // 检查是否有description字段（JSON5格式）
       if ('value' in value && 'description' in value) {
-        // JSON5格式: { value: xxx, description: xxx }
         const v = (value as any).value
         description = (value as any).description || ''
 
@@ -597,7 +712,6 @@ const parseJsonToMetadataItems = (jsonData: any) => {
           valueStr = String(v)
         }
       } else {
-        // 普通对象或数组
         if (Array.isArray(value)) {
           valueType = 'Array'
           valueStr = JSON.stringify(value, null, 2)
@@ -617,7 +731,6 @@ const parseJsonToMetadataItems = (jsonData: any) => {
       valueStr = String(value)
     }
 
-    // 添加到metadata items
     metaDataItems.value.push({
       id: nextId.value++,
       key,
@@ -628,7 +741,6 @@ const parseJsonToMetadataItems = (jsonData: any) => {
   })
 }
 
-// 获取placeholder
 const getPlaceholder = (type: string) => {
   switch (type) {
     case 'Boolean':
@@ -679,7 +791,7 @@ const getPlaceholder = (type: string) => {
               <!-- Header -->
               <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
                 <DialogTitle as="h3" class="text-xl font-bold text-gray-900">
-                  提交协议
+                  编辑协议
                 </DialogTitle>
                 <button
                   @click="handleClose"
@@ -720,28 +832,92 @@ const getPlaceholder = (type: string) => {
                     <!-- Protocol Name -->
                     <div class="form-item">
                       <label class="form-label">
-                        协议名称 <span class="text-red-500">*</span>
+                        协议名称
                       </label>
                       <input
                         v-model="formData.protocolName"
                         type="text"
-                        class="form-input"
+                        class="form-input bg-gray-50"
                         placeholder="例如: myprotocol"
-                        required
+                        readonly
                       />
                     </div>
 
-                    <!-- Version -->
+                    <!-- Version (readonly, auto-incremented) -->
                     <div class="form-item">
                       <label class="form-label">
                         版本号
                       </label>
+
+                      <!-- Version History Panel -->
+                      <div v-if="hasVersionHistory" class="mb-3">
+                        <button
+                          type="button"
+                          @click="showVersionHistory = !showVersionHistory"
+                          class="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                        >
+                          <svg
+                            class="w-4 h-4 transform transition-transform"
+                            :class="{ 'rotate-90': showVersionHistory }"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                          </svg>
+                          <span>版本历史 ({{ modifyHistory.length }} 个版本)</span>
+                        </button>
+
+                        <div
+                          v-show="showVersionHistory"
+                          class="mt-3 space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50"
+                        >
+                          <div
+                            v-for="(item, index) in modifyHistory"
+                            :key="index"
+                            class="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-purple-300 transition-colors"
+                          >
+                            <div class="flex items-center gap-3">
+                              <span
+                                v-if="index === modifyHistory.length - 1"
+                                class="px-2 py-1 text-xs font-medium text-purple-700 bg-purple-100 rounded"
+                              >
+                                当前版本
+                              </span>
+                              <span
+                                v-else
+                                class="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded"
+                              >
+                                历史版本
+                              </span>
+                              <span class="text-sm font-mono text-gray-700">
+                                {{ index === modifyHistory.length - 1 ? originalVersion : '' }}
+                              </span>
+                            </div>
+                            <a
+                              :href="`https://manapi.metaid.io/pin/ver/${route.params.id}/${index}`"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 hover:underline"
+                            >
+                              <span>查看详情</span>
+                              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+
                       <input
                         v-model="formData.version"
                         type="text"
                         class="form-input"
-                        placeholder="1.0.0"
+                        placeholder="输入版本号或留空自动递增"
                       />
+                      <p class="text-xs text-gray-500 mt-1">
+                        版本号将自动递增（如: 1.0.0 → 1.0.1 → 1.0.9 → 1.1.0），也可手动输入
+                      </p>
                     </div>
 
                     <!-- Protocol Content Type -->
@@ -783,94 +959,48 @@ const getPlaceholder = (type: string) => {
                       </Listbox>
                     </div>
 
-                    <!-- Protocol Encoding -->
+                    <!-- Intro -->
                     <div class="form-item">
                       <label class="form-label">
-                        编码格式
+                        简介 (Intro)
                       </label>
-                      <Listbox v-model="formData.protocolEncoding">
-                        <div class="relative">
-                          <ListboxButton class="form-select">
-                            <span class="block truncate">{{ formData.protocolEncoding.label }}</span>
-                            <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                              <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                              </svg>
-                            </span>
-                          </ListboxButton>
-                          <transition
-                            leave-active-class="transition duration-100 ease-in"
-                            leave-from-class="opacity-100"
-                            leave-to-class="opacity-0"
-                          >
-                            <ListboxOptions class="select-options">
-                              <ListboxOption
-                                v-for="encoding in encodingTypes"
-                                :key="encoding.value"
-                                :value="encoding"
-                                v-slot="{ active, selected }"
-                              >
-                                <li :class="[active ? 'bg-purple-100' : '', 'select-option']">
-                                  <span :class="[selected ? 'font-semibold' : 'font-normal', 'block truncate']">
-                                    {{ encoding.label }}
-                                  </span>
-                                </li>
-                              </ListboxOption>
-                            </ListboxOptions>
-                          </transition>
-                        </div>
-                      </Listbox>
+                      <textarea
+                        v-model="formData.intro"
+                        class="form-input resize-none"
+                        placeholder="请输入协议简介"
+                        rows="3"
+                      ></textarea>
                     </div>
 
-                    <!-- 协议可选信息 -->
-                    <div class="mt-6 space-y-4">
-                      <h5 class="text-sm font-semibold text-gray-700 border-l-4 border-blue-500 pl-3">
-                        协议可选信息
-                      </h5>
+                    <!-- Protocol Attachments -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        协议附件 (Protocol Attachments)
+                      </label>
+                      <ProtocolAttachmentUpload
+                        ref="attachmentUploadRef"
+                        @items-selected="handleFilesSelected"
+                        @items-removed="handleFilesRemoved"
+                      />
+                      <p class="text-xs text-gray-500 mt-1">
+                        支持文件上传或手动输入TXID，单个文件大小限制1MB，文件将在提交协议时上传到链上
+                      </p>
+                    </div>
 
-                      <!-- Intro -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          简介 (Intro)
-                        </label>
-                        <textarea
-                          v-model="formData.intro"
-                          class="form-input resize-none"
-                          placeholder="请输入协议简介"
-                          rows="3"
-                        ></textarea>
-                      </div>
-
-                      <!-- Protocol Attachments -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          协议附件 (Protocol Attachments)
-                        </label>
-                        <ProtocolAttachmentUpload
-                          ref="attachmentUploadRef"
-                          @items-selected="handleFilesSelected"
-                          @items-removed="handleFilesRemoved"
-                        />
-                        <p class="text-xs text-gray-500 mt-1">
-                          支持文件上传或手动输入TXID，单个文件大小限制1MB，文件将在提交协议时上传到链上
-                        </p>
-                      </div>
-
-                      <!-- Metadata -->
-                      <div class="form-item">
-                        <label class="form-label">
-                          元数据 (Metadata)
-                        </label>
-                        <textarea
-                          v-model="formData.metadata"
-                          class="form-input resize-none"
-                          placeholder="可以是任意类型的数据"
-                          rows="3"
-                        ></textarea>
-                        <p class="text-xs text-gray-500 mt-1">
-                          支持任意类型: 字符串、数字、对象、数组等
-                        </p>
-                      </div>
+                    <!-- Metadata -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        元数据 (Metadata)
+                      </label>
+                      <textarea
+                        v-model="formData.metadata"
+                        class="form-input resize-none"
+                        placeholder="可以是任意类型的数据"
+                        rows="3"
+                      ></textarea>
+                      <p class="text-xs text-gray-500 mt-1">
+                        支持任意类型: 字符串、数字、对象、数组等
+                      </p>
                     </div>
                   </div>
 
@@ -1039,7 +1169,7 @@ const getPlaceholder = (type: string) => {
                             实时显示协议内容
                           </span>
                         </div>
-                        
+
                         <div class="json-preview-container">
                           <pre class="json-preview-content">{{ generateJSON5WithComments() }}</pre>
                         </div>
@@ -1069,7 +1199,7 @@ const getPlaceholder = (type: string) => {
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  {{ isSubmitting ? '提交中...' : '提交协议' }}
+                  {{ isSubmitting ? '提交中...' : '提交' }}
                 </button>
               </div>
             </DialogPanel>
@@ -1156,18 +1286,13 @@ const getPlaceholder = (type: string) => {
   @apply text-white text-sm font-mono p-4 overflow-x-auto whitespace-pre-wrap;
   background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
   line-height: 1.5;
-
-  /* JSON 语法高亮 */
   color: #e5e7eb;
-
-  /* 允许用户选中文本 */
   user-select: text;
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
   cursor: text;
 
-  /* 滚动条样式 */
   &::-webkit-scrollbar {
     height: 8px;
   }

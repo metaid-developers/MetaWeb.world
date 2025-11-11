@@ -1229,6 +1229,7 @@ export const useBuildTx = createGlobalState(() => {
         encoding: params.encoding
       }
       
+      
       return await createPin(metaidData, params.options || {})
       
     } catch (error) {
