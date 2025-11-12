@@ -56,17 +56,31 @@
 
             <!-- 卡片内容 -->
             <div class="card-content">
-              <div class="app-header flex justify-between items-start">
-                <div class="flex flex-row ">
+              <div class="app-header flex justify-between items-stretch">
+                <div class="flex flex-1 flex-row ">
                   <img  class="app-icon" :src="getCoverUrl(item.contentSummary?.icon)" alt="">
-                   <div class="app-title flex  gap-2">
+                  <div class="app-info">
+                      <div class="app-title flex  gap-2">
                     <span>{{ item.contentSummary?.appName || 'MetaApp' }}</span>
                     <img v-if="item.contentSummary?.prompt" class="ai-icon" :src="AiImg" alt="">
                    </div>
+                   <div class="info-bottom">
+                    <div class="app-pin-copy">
+                      <span>PINID: {{ formatPinId(item.id) }}</span>
+                      <svg @click.stop="copyPinId(item.id)" class="copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <path d="M8 4V16C8 17.1046 8.89543 18 10 18H18C19.1046 18 20 17.1046 20 16V7.24162C20 6.71101 19.7893 6.20215 19.4142 5.82678L16.1716 2.58436C15.7962 2.20898 15.2874 1.99831 14.7568 1.99831H10C8.89543 1.99831 8 2.89374 8 3.99831V4ZM10 4H14V7C14 7.55228 14.4477 8 15 8H18V16H10V4Z" fill="currentColor"/>
+                        <path d="M4 8V20C4 21.1046 4.89543 22 6 22H14C15.1046 22 16 21.1046 16 20V19H14V20H6V8H4Z" fill="currentColor"/>
+                      </svg>
+                    </div>
+                   </div>
+                  </div>
                 </div>
-                <div class="version  bg-[#EEF5FF] "><span >
-                  {{ item.contentSummary?.version || '版本1.0' }}
-                </span></div>
+                <div class="version-section">
+                  <div class="version  bg-[#EEF5FF] "><span >
+                    {{ item.contentSummary?.version || '版本1.0' }}
+                  </span></div>
+                  <div class="app-publish-time">发布于: {{ formatTimestamp(item.timestamp) }}</div>
+                </div>
                
               </div>
 
@@ -337,6 +351,13 @@ const loadUserInfo = async (app: PinInfo) => {
 
   // 处理下载按钮点击事件
   function handleDownload(item: any) {
+    // 检查是否为 HTML 格式
+    const contentType = item.contentSummary?.contentType || ''
+    if (contentType === 'text/html') {
+      showToast('不支持 HTML 格式文件进行下载', 'warning')
+      return
+    }
+
     if (item.contentSummary?.content) {
       let content = item.contentSummary.content
       // 如果content格式是metafile://{PINID}，提取PINID
@@ -355,14 +376,24 @@ const loadUserInfo = async (app: PinInfo) => {
 
    // 处理运行按钮点击事件
   function handleRun(item: any) {
-
-
     if (!item.id) {
       showToast('暂无内容信息', 'warning')
       return
     }
 
-   window.open(`https://www.metaweb.world/metaapp/index.html?pinid=${item.id}`, '_blank')
+    // 检查是否为源码包且不是 HTML 类型
+    const content = item.contentSummary?.content || ''
+    const contentType = item.contentSummary?.contentType || ''
+    const runtime = item.contentSummary?.runtime || ''
+
+    // 判断是否为 metafile:// 格式的源码包，且不是 text/html 类型
+    if (content.startsWith('metafile://') && contentType !== 'text/html') {
+      const runtimeInfo = runtime ? `\n\n此源码包需要在 ${runtime} 运行时环境中运行。` : ''
+      showToast(`源码包无法在浏览器中运行。${runtimeInfo}`, 'warning')
+      return
+    }
+
+    window.open(`https://www.metaweb.world/metaapp/index.html?pinid=${item.id}`, '_blank')
   }
 
   function openSubmitModal() {
@@ -370,6 +401,33 @@ const loadUserInfo = async (app: PinInfo) => {
     return showToast(`请登录钱包后再进行操作`, 'error')
   }
   showSubmitModal.value = true
+}
+
+// 格式化 PIN ID 显示（前4位 + ... + 后4位）
+function formatPinId(pinId: string): string {
+  if (!pinId || pinId.length <= 8) return pinId
+  return `${pinId.slice(0, 4)}...${pinId.slice(-4)}`
+}
+
+// 复制 PIN ID 到剪贴板
+async function copyPinId(pinId: string) {
+  try {
+    await navigator.clipboard.writeText(pinId)
+    showToast('PIN ID 已复制到剪贴板', 'success')
+  } catch (error) {
+    console.error('复制失败:', error)
+    showToast('复制失败', 'error')
+  }
+}
+
+// 格式化时间戳为日期显示
+function formatTimestamp(timestamp: number): string {
+  if (!timestamp) return '未知日期'
+  const date = new Date(timestamp * 1000) // 假设 timestamp 是秒级时间戳
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 // 页面加载时获取MetaApp列表
@@ -575,6 +633,13 @@ onMounted(async () => {
   .app-header {
     margin-bottom: 12px;
 
+    .app-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      flex: 1;
+    }
+
     .app-title {
      margin-top: 3px;
       font-size: 14px;
@@ -601,7 +666,52 @@ onMounted(async () => {
       padding: 5px 10px;
     }
 
-   
+
+  }
+
+  .info-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: auto;
+
+    .app-pin-copy {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: #999999;
+
+      span {
+        line-height: 1;
+      }
+
+      .copy-icon {
+        cursor: pointer;
+        color: #999999;
+        transition: color 0.2s;
+        flex-shrink: 0;
+
+        &:hover {
+          color: #3F71FF;
+        }
+      }
+    }
+  }
+
+  .version-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
+    
+    .app-publish-time {
+      font-size: 9px;
+      color: #999999;
+      line-height: 1;
+      // margin-top: 10px;
+     
+    }
   }
 
   .app-intro{
