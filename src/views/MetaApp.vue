@@ -355,33 +355,14 @@ const loadUserInfo = async (app: PinInfo) => {
 
    // 处理运行按钮点击事件
   function handleRun(item: any) {
-    // 分析 contentSummary
-    
-    const contentSummary = item.contentSummary
-    if (!contentSummary) {
+
+
+    if (!item.id) {
       showToast('暂无内容信息', 'warning')
       return
     }
 
-    // 检查 contentType
-    if (contentSummary?.contentType === 'text/html') {
-      // 提取 content
-      const content = contentSummary.content
-
-      if (content && content.startsWith('metafile://')) {
-        // 提取 PINID
-        const pinId = content.replace('metafile://', '')
-        console.log('提取的 PINID:', pinId)
-
-        // 新开窗口跳转
-        window.open(`https://man.metaid.io/content/${pinId}`, '_blank')
-      } else {
-        showToast('内容格式不支持', 'warning')
-      }
-    } else {
-      // 非 text/html 类型
-      showToast('源码解析功能开发中，敬请期待', 'info')
-    }
+   window.open(`https://www.metaweb.world/metaapp/index.html?pinid=${item.id}`, '_blank')
   }
 
   function openSubmitModal() {
