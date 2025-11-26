@@ -75,12 +75,31 @@
                    </div>
                   </div>
                 </div>
-                <div class="version-section">
-                  <div class="version  bg-[#EEF5FF] "><span >
+
+
+            
+             
+                <div class="version-section ">
+              
+                  <div class="version flex flex-row items-center  bg-[#EEF5FF] ">
+                          <button
+                    v-if="item.address === userStore.last.address"
+                    class="edit-btn mr-1"
+                    @click.stop="openEditModal(item)"
+                    title="编辑"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.43741 22.1213 4.00001C22.1213 4.56262 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                    
+                    <span >
                     {{ item.contentSummary?.version || '版本1.0' }}
                   </span></div>
                   <div class="app-publish-time">发布于: {{ formatTimestamp(item.timestamp) }}</div>
                 </div>
+                 
                
               </div>
 
@@ -168,6 +187,9 @@
 
       <!-- Submit MetaApp Modal -->
       <SubmitMetaAppModal v-model="showSubmitModal" />
+
+      <!-- Edit MetaApp Modal -->
+      <EditMetaAppModal v-model="showEditModal" :meta-app="selectedMetaApp" @success="handleEditSuccess" />
     </div>
   </template>
 
@@ -175,6 +197,7 @@
   import { ref, onMounted, computed, type Ref } from 'vue'
   import Banner from '@/components/Banner/Banner.vue'
   import SubmitMetaAppModal from '@/components/SubmitMetaAppModal/SubmitMetaAppModal.vue'
+  import EditMetaAppModal from '@/components/EditMetaAppModal/EditMetaAppModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/components/Toast/useToast'
 import { type AddressPinListResponse,type PinInfo,  getPinListByPath } from "@/api/ManV2";
@@ -196,6 +219,8 @@ import { FilterMetaAppPinList } from "@/data/constants";
   const searchQuery = ref('')
   const { showToast } =useToast()
   const showSubmitModal = ref(false)
+  const showEditModal = ref(false)
+  const selectedMetaApp = ref<PinInfo | null>(null)
   const metaAppList: Ref<AddressPinListResponse> = ref({
     total:0,
     list:[]
@@ -428,6 +453,21 @@ function formatTimestamp(timestamp: number): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+// Open edit modal
+function openEditModal(item: PinInfo) {
+  if(!userStore.isAuthorized){
+    return showToast(`请登录钱包后再进行操作`, 'error')
+  }
+  selectedMetaApp.value = item
+  showEditModal.value = true
+}
+
+// Handle edit success
+function handleEditSuccess() {
+  // Refresh the list to show updated data
+  fetchMetaAppList(currentPage.value)
 }
 
 // 页面加载时获取MetaApp列表
@@ -699,18 +739,46 @@ onMounted(async () => {
     }
   }
 
+  
+
   .version-section {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     justify-content: space-between;
-    
+    gap: 4px;
+    .version{
+       .edit-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+     
+      background: transparent;
+      border: none;
+      color: #3F71FF;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-radius: 4px;
+
+      &:hover {
+        background: #EEF5FF;
+        color: #2859d4;
+      }
+
+      svg {
+        width: 12px;
+        height: 12px;
+      }
+    }
+    }
+   
+
     .app-publish-time {
       font-size: 9px;
       color: #999999;
       line-height: 1;
       // margin-top: 10px;
-     
+
     }
   }
 

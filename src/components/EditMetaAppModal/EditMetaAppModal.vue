@@ -1,24 +1,25 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
 import { useCreateProtocols } from '@/hooks/use-create-protocols'
 import { useToast } from '@/components/Toast/useToast'
-import { useUserStore } from '@/stores/user'
 import SuccessModal from '@/components/SuccessModal/SuccessModal.vue'
 import ProtocolAttachmentUpload from '@/components/ProtocolAttachmentUpload/ProtocolAttachmentUpload.vue'
+import type { PinInfo } from '@/api/ManV2'
 
 interface Props {
   modelValue: boolean
+  metaApp: PinInfo | null
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
+  (e: 'success'): void
 }>()
 
-const { uploadApp, createFile } = useCreateProtocols()
+const { uploadApp } = useCreateProtocols()
 const { showToast } = useToast()
-const userStore = useUserStore()
 
 const isOpen = computed({
   get: () => props.modelValue,
@@ -61,15 +62,6 @@ const contentTypeOptions = [
   { value: 'application/octet-stream', label: '二进制流' }
 ]
 
-// Popular app tags
-const popularTags = [
-  // '游戏', '工具', '社交', '娱乐', '教育',
-  // '生产力', '金融', '新闻', '购物', '音乐',
-  // '视频', '图片', '阅读', '健康', '旅行',
-  // '美食', '运动', 'AI', '区块链', 'Web3',
-  // 'DeFi', 'NFT', 'Metaverse', 'DAO', 'DApp'
-]
-
 // Custom tag input
 const customTagInput = ref('')
 
@@ -87,16 +79,6 @@ const removeTag = (index: number) => {
   formData.value.tags.splice(index, 1)
 }
 
-// Toggle tag from popular list
-const toggleTag = (tag: string) => {
-  const index = formData.value.tags.indexOf(tag)
-  if (index > -1) {
-    formData.value.tags.splice(index, 1)
-  } else {
-    formData.value.tags.push(tag)
-  }
-}
-
 // Form data
 const formData = ref({
   title: '',
@@ -106,7 +88,7 @@ const formData = ref({
   coverImg: '',
   introImgs: [] as string[],
   intro: '',
-  disabled:false,
+  disabled: false,
   runtime: [] as string[],
   indexFile: '',
   version: 'v1.0.0',
@@ -115,7 +97,7 @@ const formData = ref({
   code: '',
   contentHash: '',
   metadata: '',
-  tags:[]
+  tags: []
 })
 
 const isSubmitting = ref(false)
@@ -132,16 +114,137 @@ const showSuccessModal = ref(false)
 const successTxid = ref('')
 
 // Computed: form validation
-// Required fields: title, appName, icon, coverImg, runtime
 const isFormValid = computed(() => {
   return !!(
     formData.value.title.trim() &&
     formData.value.appName.trim() &&
     formData.value.runtime.length > 0 &&
-    (iconUploadRef.value && iconUploadRef.value.selectedItems.length > 0) &&
-    (coverUploadRef.value && coverUploadRef.value.selectedItems.length > 0)
+    formData.value.icon &&
+    formData.value.coverImg
   )
 })
+
+// Auto-increment version
+const incrementVersion = (version: string): string => {
+  // Parse version like v1.0.0 to v1.0.1, max v1.0.99 then v1.1.0
+  const match = version.match(/^v(\d+)\.(\d+)\.(\d+)$/)
+  if (!match) return 'v1.0.1'
+
+  let [, major, minor, patch] = match.map(Number)
+
+  patch++
+  if (patch > 99) {
+    patch = 0
+    minor++
+  }
+
+  return `v${major}.${minor}.${patch}`
+}
+
+// Helper function to convert protocol path to SelectedTxidItem
+const createTxidItem = (path: string): any => {
+  if (!path) return null
+
+  // Parse metafile://txidi0 or metacode://txidi0 format
+  const match = path.match(/^(metafile:\/\/|metacode:\/\/)(.+)$/i)
+  if (!match) return null
+
+  const prefix = match[1]
+  const txidWithSuffix = match[2]
+
+  // Remove i0 suffix if present
+  const txid = txidWithSuffix.replace(/i0$/, '')
+
+  return {
+    type: 'txid',
+    prefix,
+    txid,
+    fullPath: path
+  }
+}
+
+// Watch for metaApp changes and pre-fill form
+watch(() => props.metaApp, (metaApp) => {
+  if (metaApp && metaApp.contentSummary) {
+    const summary = metaApp.contentSummary
+
+    // Parse contentSummary if it's a string
+    const parsedSummary = typeof summary === 'string' ? JSON.parse(summary) : summary
+
+    // Pre-fill form data
+    formData.value = {
+      title: parsedSummary.title || '',
+      appName: parsedSummary.appName || '',
+      prompt: parsedSummary.prompt || '',
+      icon: parsedSummary.icon || '',
+      coverImg: parsedSummary.coverImg || '',
+      introImgs: parsedSummary.introImgs || [],
+      intro: parsedSummary.intro || '',
+      disabled: parsedSummary.disabled || false,
+      runtime: parsedSummary.runtime ? parsedSummary.runtime.split('/') : [],
+      indexFile: parsedSummary.indexFile || '',
+      version: incrementVersion(parsedSummary.version || 'v1.0.0'),
+      contentType: parsedSummary.contentType || 'application/zip',
+      content: parsedSummary.content || '',
+      code: parsedSummary.code || '',
+      contentHash: parsedSummary.contentHash || '',
+      metadata: parsedSummary.metadata ? (typeof parsedSummary.metadata === 'string' ? parsedSummary.metadata : JSON.stringify(parsedSummary.metadata, null, 2)) : '',
+      tags: parsedSummary.tags || []
+    }
+
+    // Pre-fill file upload components for icon
+    if (parsedSummary.icon) {
+      setTimeout(() => {
+        const item = createTxidItem(parsedSummary.icon)
+        if (item) {
+          iconUploadRef.value?.addExistingAttachments([item])
+        }
+      }, 100)
+    }
+
+    // Pre-fill file upload components for coverImg
+    if (parsedSummary.coverImg) {
+      setTimeout(() => {
+        const item = createTxidItem(parsedSummary.coverImg)
+        if (item) {
+          coverUploadRef.value?.addExistingAttachments([item])
+        }
+      }, 100)
+    }
+
+    // Pre-fill file upload components for introImgs
+    if (parsedSummary.introImgs && parsedSummary.introImgs.length > 0) {
+      setTimeout(() => {
+        const items = parsedSummary.introImgs
+          .map((img: string) => createTxidItem(img))
+          .filter((item: any) => item !== null)
+        if (items.length > 0) {
+          introImgsUploadRef.value?.addExistingAttachments(items)
+        }
+      }, 100)
+    }
+
+    // Pre-fill file upload components for content
+    if (parsedSummary.content) {
+      setTimeout(() => {
+        const item = createTxidItem(parsedSummary.content)
+        if (item) {
+          contentUploadRef.value?.addExistingAttachments([item])
+        }
+      }, 100)
+    }
+
+    // Pre-fill file upload components for code (metacode format)
+    if (parsedSummary.code) {
+      setTimeout(() => {
+        const item = createTxidItem(parsedSummary.code)
+        if (item) {
+          codeUploadRef.value?.addExistingAttachments([item])
+        }
+      }, 100)
+    }
+  }
+}, { immediate: true })
 
 // Upload single file and get metafile link
 const uploadSingleFile = async (uploadRef: any, fieldName: string): Promise<string> => {
@@ -153,7 +256,7 @@ const uploadSingleFile = async (uploadRef: any, fieldName: string): Promise<stri
     showToast(`正在上传${fieldName}到链上...`, 'info')
     const paths = await uploadRef.value.uploadFilesToChain()
     if (paths.length > 0) {
-      return paths[0] // 返回完整路径，如: metafile://txidi0 或 metacode://txidi0
+      return paths[0]
     }
 
     throw new Error('上传失败：未获取到路径')
@@ -172,7 +275,7 @@ const uploadMultipleFiles = async (uploadRef: any, fieldName: string): Promise<s
     showToast(`正在上传${fieldName}到链上...`, 'info')
     const paths = await uploadRef.value.uploadFilesToChain()
 
-    return paths // 返回完整路径数组，如: ["metafile://txid1i0", "metafile://txid2i0"]
+    return paths
   } catch (error) {
     throw new Error(`${fieldName}上传失败: ${error instanceof Error ? error.message : '未知错误'}`)
   }
@@ -180,7 +283,12 @@ const uploadMultipleFiles = async (uploadRef: any, fieldName: string): Promise<s
 
 // Submit form
 const handleSubmit = async () => {
-  // Validate all required fields: title, appName, icon, coverImg, runtime
+  if (!props.metaApp) {
+    showToast('未找到要编辑的MetaApp', 'error')
+    return
+  }
+
+  // Validate all required fields
   const requiredFields = [
     { name: '标题', value: formData.value.title.trim() },
     { name: '应用名称', value: formData.value.appName.trim() }
@@ -199,32 +307,50 @@ const handleSubmit = async () => {
     return
   }
 
-  // Validate required file uploads: icon, coverImg
-  const requiredUploads = [
-    { ref: iconUploadRef, name: '应用图标' },
-    { ref: coverUploadRef, name: '封面图' }
-  ]
+  // Validate required fields: icon, coverImg
+  if (!formData.value.icon) {
+    showToast('请上传应用图标', 'warning')
+    return
+  }
 
-  for (const { ref, name } of requiredUploads) {
-    if (!ref.value || ref.value.selectedItems.length === 0) {
-      showToast(`请上传${name}`, 'warning')
-      return
-    }
+  if (!formData.value.coverImg) {
+    showToast('请上传封面图', 'warning')
+    return
   }
 
   try {
     isSubmitting.value = true
 
-    // Upload required files
-    const icon = await uploadSingleFile(iconUploadRef, '应用图标')
-    const coverImg = await uploadSingleFile(coverUploadRef, '封面图')
+    // Upload files if they were changed (check if they are File objects)
+    let icon = formData.value.icon
+    let coverImg = formData.value.coverImg
+
+    // Only upload if user selected new files
+    if (iconUploadRef.value && iconUploadRef.value.selectedItems.length > 0 && iconUploadRef.value.selectedItems.some((item: any) => item.type === 'file')) {
+      icon = await uploadSingleFile(iconUploadRef, '应用图标')
+    }
+
+    if (coverUploadRef.value && coverUploadRef.value.selectedItems.length > 0 && coverUploadRef.value.selectedItems.some((item: any) => item.type === 'file')) {
+      coverImg = await uploadSingleFile(coverUploadRef, '封面图')
+    }
 
     // Upload optional files
-    const introImgs = await uploadMultipleFiles(introImgsUploadRef, '简介图')
-    const content = await uploadSingleFile(contentUploadRef, '应用内容包')
-    const code = await uploadSingleFile(codeUploadRef, '源码包')
+    let introImgs = formData.value.introImgs
+    if (introImgsUploadRef.value && introImgsUploadRef.value.selectedItems.length > 0 && introImgsUploadRef.value.selectedItems.some((item: any) => item.type === 'file')) {
+      introImgs = await uploadMultipleFiles(introImgsUploadRef, '简介图')
+    }
 
-    showToast('文件上传成功，正在提交MetaApp...', 'success')
+    let content = formData.value.content
+    if (contentUploadRef.value && contentUploadRef.value.selectedItems.length > 0 && contentUploadRef.value.selectedItems.some((item: any) => item.type === 'file')) {
+      content = await uploadSingleFile(contentUploadRef, '应用内容包')
+    }
+
+    let code = formData.value.code
+    if (codeUploadRef.value && codeUploadRef.value.selectedItems.length > 0 && codeUploadRef.value.selectedItems.some((item: any) => item.type === 'file')) {
+      code = await uploadSingleFile(codeUploadRef, '源码包')
+    }
+
+    showToast('正在提交编辑...', 'success')
 
     // Parse metadata (optional)
     let parsedMetadata: any = ''
@@ -236,67 +362,37 @@ const handleSubmit = async () => {
       }
     }
 
-    // Build MetaApp protocol data with required fields
+    // Build MetaApp protocol data
     const metaAppData: any = {
       title: formData.value.title,
       appName: formData.value.appName,
       runtime: formData.value.runtime.join('/'),
-      icon:icon,
-      prompt:formData.value.prompt,
-      coverImg:coverImg,
-      introImgs:introImgs,
-      intro:formData.value.intro,
-      disabled:formData.value.disabled,
-      indexFile:formData.value.indexFile,
-      code:code,
-      contentHash:formData.value.contentHash,
-      metadata:parsedMetadata,
-      tags:formData.value.tags,
+      icon: icon,
+      prompt: formData.value.prompt,
+      coverImg: coverImg,
+      introImgs: introImgs,
+      intro: formData.value.intro,
+      disabled: formData.value.disabled,
+      indexFile: formData.value.indexFile,
+      code: code,
+      contentHash: formData.value.contentHash,
+      metadata: parsedMetadata,
+      tags: formData.value.tags,
       version: formData.value.version,
       contentType: formData.value.contentType,
       content: content
-
     }
 
-    // Add optional fields only if they have values
-    // if (formData.value.prompt.trim()) {
-    //   metaAppData.prompt = formData.value.prompt
-    // }
-    // if (icon) {
-    //   metaAppData.icon = icon
-    // }
-    // if (coverImg) {
-    //   metaAppData.coverImg = coverImg
-    // }
-    // if (introImgs.length > 0) {
-    //   metaAppData.introImgs = introImgs
-    // }
-    // if (formData.value.intro.trim()) {
-    //   metaAppData.intro = formData.value.intro
-    // }
-    // if (formData.value.indexFile.trim()) {
-    //   metaAppData.indexFile = formData.value.indexFile
-    // }
-    // if (code) {
-    //   metaAppData.code = code
-    // }
-    // if (formData.value.contentHash.trim()) {
-    //   metaAppData.contentHash = formData.value.contentHash
-    // }
-    // if (parsedMetadata) {
-    //   metaAppData.metadata = parsedMetadata
-    // }
-
     const metaidData = {
-      path: `/protocols/metaapp`,
+      path: `@${props.metaApp.id}`,
       body: metaAppData,
       contentType: 'application/json',
       encoding: 'utf-8' as const,
       version: '1.0.0',
-      operation:'create' as const
+      operation: 'modify' as const
     }
 
-    console.log('提交MetaApp数据:', metaidData)
+    console.log('提交编辑MetaApp数据:', metaidData)
 
     const options = {
       serialAction: 'finish' as const,
@@ -305,7 +401,7 @@ const handleSubmit = async () => {
     // Call uploadApp method
     const result = await uploadApp(metaidData, options)
 
-    console.log('MetaApp上链结果:', result)
+    console.log('MetaApp编辑上链结果:', result)
 
     // Extract txid
     const txid = result?.txid || result?.txids?.[0]
@@ -314,18 +410,21 @@ const handleSubmit = async () => {
     resetForm()
     isOpen.value = false
 
-    showToast('MetaApp提交成功！', 'success')
+    showToast('MetaApp编辑成功！', 'success')
+
+    // Emit success event to refresh parent list
+    emit('success')
 
     // Show success modal if txid exists
     if (txid) {
       successTxid.value = txid
       showSuccessModal.value = true
 
-      console.log('✅ MetaApp已成功提交到链上')
+      console.log('✅ MetaApp编辑已成功提交到链上')
       console.log('🔗 TxID:', txid)
     }
   } catch (error) {
-    console.error('提交MetaApp失败:', error)
+    console.error('提交编辑失败:', error)
     showToast(`提交失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error')
   } finally {
     isSubmitting.value = false
@@ -342,7 +441,7 @@ const resetForm = () => {
     coverImg: '',
     introImgs: [],
     intro: '',
-    disabled:false,
+    disabled: false,
     runtime: [],
     indexFile: '',
     version: 'v1.0.0',
@@ -351,7 +450,7 @@ const resetForm = () => {
     code: '',
     contentHash: '',
     metadata: '',
-    tags:[]
+    tags: []
   }
 
   // Clear all file upload components
@@ -404,7 +503,7 @@ const handleClose = () => {
               <!-- Header -->
               <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
                 <DialogTitle as="h3" class="text-xl font-bold text-gray-900">
-                  提交 MetaApp
+                  编辑 MetaApp
                 </DialogTitle>
                 <button
                   @click="handleClose"
@@ -656,6 +755,9 @@ const handleClose = () => {
                         class="form-input"
                         placeholder="v1.0.0"
                       />
+                      <p class="text-xs text-gray-500 mt-1">
+                        版本号已自动递增，您也可以手动修改
+                      </p>
                     </div>
 
                     <!-- Content Type -->
@@ -725,27 +827,6 @@ const handleClose = () => {
                         </span>
                       </div>
 
-                      <!-- Popular Tags -->
-                      <!-- <div class="mb-3">
-                        <p class="text-xs font-semibold text-gray-600 mb-2">常用标签</p>
-                        <div class="flex flex-wrap gap-2">
-                          <button
-                            v-for="tag in popularTags"
-                            :key="tag"
-                            type="button"
-                            @click="toggleTag(tag)"
-                            :class="[
-                              'px-3 py-1.5 text-sm rounded-lg border transition-all',
-                              formData.tags.includes(tag)
-                                ? 'bg-purple-600 text-white border-purple-600 font-medium'
-                                : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400 hover:bg-purple-50'
-                            ]"
-                          >
-                            {{ tag }}
-                          </button>
-                        </div>
-                      </div> -->
-
                       <!-- Custom Tag Input -->
                       <div class="flex gap-2">
                         <input
@@ -765,7 +846,7 @@ const handleClose = () => {
                       </div>
 
                       <p class="text-xs text-gray-500 mt-2">
-                        选择常用标签或输入自定义标签，支持多选
+                        输入自定义标签，支持多选
                       </p>
                     </div>
                   </div>
@@ -810,7 +891,7 @@ const handleClose = () => {
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    {{ isSubmitting ? '提交中...' : '提交 MetaApp' }}
+                    {{ isSubmitting ? '提交中...' : '提交编辑' }}
                   </button>
                 </div>
               </div>
