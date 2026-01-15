@@ -73,6 +73,7 @@ export interface PinInfo {
     userInfo?:UserInfo
     popLv?: number
     preview?: string
+    modify_history?:string[] | null
 }
 
 

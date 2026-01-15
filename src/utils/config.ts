@@ -15,8 +15,10 @@ class ConfigManagerImpl implements ConfigManager {
         debug: false
       },
       api: {
-
+        metafsUrl:'https://file.metaid.io/metafile-indexer',
+        baseUrl:'https://man.metaid.io',
         MAN_BASE_URL:"https://man.metaid.io",
+      
         timeout: 10000,
         retryAttempts: 3
       },

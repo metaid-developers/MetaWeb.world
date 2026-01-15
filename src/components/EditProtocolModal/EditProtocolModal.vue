@@ -7,7 +7,7 @@ import { useToast } from '@/components/Toast/useToast'
 import { useUserStore } from '@/stores/user'
 import SuccessModal from '@/components/SuccessModal/SuccessModal.vue'
 import ProtocolAttachmentUpload from '@/components/ProtocolAttachmentUpload/ProtocolAttachmentUpload.vue'
-
+import JSON5 from 'json5'
 interface Props {
   modelValue: boolean
   protocolData: any
@@ -84,7 +84,7 @@ const formData = ref({
   intro: '',
   protocolAttachments: [] as string[],
   metadata: '',
-  protocolContentType: mimeTypes[1],
+  protocolContentType: mimeTypes[0],
   protocolEncoding: encodingTypes[0],
 })
 
@@ -144,10 +144,40 @@ const incrementVersion = (currentVersion: string): string => {
 // 解析协议内容并填充表单
 const parseProtocolContent = (content: string) => {
   if (!content) return
-
+  
   try {
-    // 解析注释和JSON内容
-    const lines = content.split('\n')
+     // 先处理字符串中的真实换行符
+    // 找到所有字符串字面量，将里面的换行符转义
+    let processedContent = ''
+    let inString = false
+    let escapeNext = false
+    
+    for (let i = 0; i < content.length; i++) {
+      const char = content[i]
+      const prevChar = i > 0 ? content[i - 1] : ''
+      
+      if (!escapeNext && char === '"' && prevChar !== '\\') {
+        inString = !inString
+      }
+      
+      if (inString && char === '\n' && prevChar !== '\\') {
+        // 在字符串内的真实换行符，需要转义
+        processedContent += '\\n'
+      } else if (inString && char === '\r' && prevChar !== '\\') {
+        // 回车符也需要处理
+        processedContent += '\\r'
+      } else {
+        processedContent += char
+      }
+      
+      escapeNext = (char === '\\' && !escapeNext)
+    }
+    
+        // 解析注释和JSON内容
+    const lines = processedContent.split('\n')
+
+
+
     const jsonLines: string[] = []
     const commentMap = new Map<string, string>() // key -> comment
     let currentComment = ''
@@ -187,9 +217,10 @@ const parseProtocolContent = (content: string) => {
 
       jsonLines.push(line)
     }
-
-    const jsonStr = jsonLines.join('\n')
-    const parsed = JSON.parse(jsonStr)
+    
+    const jsonStr =jsonLines.join('\n')
+    
+    const parsed = JSON5.parse(jsonStr)
 
     // 清空现有items
     metaDataItems.value = []
@@ -372,6 +403,7 @@ const handleValueTypeChange = (item: MetaDataItem) => {
 
 // 解析值根据类型
 const parseValue = (value: string, type: string): any => {
+  
   if (!value || !value.trim()) {
     switch (type) {
       case 'String':
@@ -429,14 +461,92 @@ const parseValue = (value: string, type: string): any => {
           }
           return parsedArr
         } catch (jsonError) {
+          // 如果标准JSON解析失败，尝试解析类似 [x,y] 或 ["x","y"] 或 [1,2] 等格式
           try {
-            let fixedJson = value.trim()
-            fixedJson = fixedJson.replace(/(\w+):/g, '"$1":')
-            const parsedArr = JSON.parse(fixedJson)
-            if (!Array.isArray(parsedArr)) {
-              throw new Error('Not a valid array')
+            const trimmedValue = value.trim()
+            // 检查是否以 [ 开头和 ] 结尾
+            if (!trimmedValue.startsWith('[') || !trimmedValue.endsWith(']')) {
+              throw new Error('Not a valid array format')
             }
-            return parsedArr
+            
+            // 提取数组内容（去掉外层的 [ 和 ]）
+            const content = trimmedValue.slice(1, -1).trim()
+            
+            // 如果内容为空，返回空数组
+            if (!content) {
+              return []
+            }
+            
+            // 分割数组元素，考虑嵌套的数组和对象
+            const elements: string[] = []
+            let currentElement = ''
+            let depth = 0
+            let inString = false
+            let stringChar = ''
+            
+            for (let i = 0; i < content.length; i++) {
+              const char = content[i]
+              const prevChar = i > 0 ? content[i - 1] : ''
+              
+              // 处理字符串引号
+              if ((char === '"' || char === "'") && prevChar !== '\\') {
+                if (!inString) {
+                  inString = true
+                  stringChar = char
+                } else if (char === stringChar) {
+                  inString = false
+                  stringChar = ''
+                }
+                currentElement += char
+              } else if (inString) {
+                // 在字符串内，直接添加字符
+                currentElement += char
+              } else {
+                // 处理括号深度
+                if (char === '[' || char === '{') {
+                  depth++
+                  currentElement += char
+                } else if (char === ']' || char === '}') {
+                  depth--
+                  currentElement += char
+                } else if (char === ',' && depth === 0) {
+                  // 在顶层遇到逗号，分割元素
+                  elements.push(currentElement.trim())
+                  currentElement = ''
+                } else {
+                  currentElement += char
+                }
+              }
+            }
+            
+            // 添加最后一个元素
+            if (currentElement.trim()) {
+              elements.push(currentElement.trim())
+            }
+            
+            // 解析每个元素
+            const parsedElements = elements.map(element => {
+              const trimmed = element.trim()
+              
+              // 尝试解析为JSON值
+              try {
+                return JSON.parse(trimmed)
+              } catch {
+                // 如果不是有效的JSON，尝试判断类型
+                // 如果是数字
+                if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+                  return Number(trimmed)
+                }
+                // 如果是布尔值
+                if (trimmed === 'true') return true
+                if (trimmed === 'false') return false
+                if (trimmed === 'null') return null
+                // 否则作为字符串返回
+                return trimmed
+              }
+            })
+            
+            return parsedElements
           } catch (fixError) {
             throw new Error('Invalid array format')
           }
@@ -453,6 +563,7 @@ const parseValue = (value: string, type: string): any => {
 
 // 生成带注释的JSON5字符串
 const generateJSON5WithComments = () => {
+  
   let result = '{\n'
 
   metaDataItems.value.forEach((item, index) => {
@@ -595,6 +706,8 @@ const handleSubmit = async () => {
       version: originalVersion.value , // 使用自增后的版本号
       operation: 'modify' as const
     }
+
+    
 
     console.log('提交编辑协议数据:', metaidData)
     const options = {

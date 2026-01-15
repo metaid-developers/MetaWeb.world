@@ -85,7 +85,7 @@ export async function estimateUploadFee(file:AttachmentItem) {
     
     // 计算 OP_RETURN 输出大小
     // MetaID 协议：metaid + operation + path + encryption + version + contentType + content
-    const path = '/file';
+    const path = `/file/${file.fileName}`
     const fileHost = '';
     const finalPath = fileHost ? fileHost + ':' + path : path;
     

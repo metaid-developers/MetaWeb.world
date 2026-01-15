@@ -62,6 +62,20 @@ const contentTypeOptions = [
   { value: 'application/octet-stream', label: '二进制流' }
 ]
 
+// MIME type options
+const codeTypeOptions = [
+  { value: 'application/zip', label: 'ZIP压缩包' },
+  { value: 'application/x-tar', label: 'TAR压缩包' },
+  { value: 'application/x-7z-compressed', label: '7Z压缩包' },
+  { value: 'application/x-rar-compressed', label: 'RAR压缩包' },
+  { value: 'application/gzip', label: 'GZIP压缩包' },
+  { value: 'application/json', label: 'JSON数据' },
+  { value: 'application/xml', label: 'XML文档' },
+  { value: 'text/html', label: 'HTML网页' },
+  { value: 'text/css', label: 'CSS样式表' },
+  { value: 'application/javascript', label: 'JavaScript文件' },
+]
+
 // Custom tag input
 const customTagInput = ref('')
 
@@ -93,6 +107,7 @@ const formData = ref({
   indexFile: '',
   version: 'v1.0.0',
   contentType: 'application/zip',
+  codeType:'application/zip',
   content: '',
   code: '',
   contentHash: '',
@@ -185,6 +200,7 @@ watch(() => props.metaApp, (metaApp) => {
       indexFile: parsedSummary.indexFile || '',
       version: incrementVersion(parsedSummary.version || 'v1.0.0'),
       contentType: parsedSummary.contentType || 'application/zip',
+      codeType:parsedSummary.codeType || 'application/zip',
       content: parsedSummary.content || '',
       code: parsedSummary.code || '',
       contentHash: parsedSummary.contentHash || '',
@@ -341,15 +357,20 @@ const handleSubmit = async () => {
     }
 
     let content = formData.value.content
+    
     if (contentUploadRef.value && contentUploadRef.value.selectedItems.length > 0 && contentUploadRef.value.selectedItems.some((item: any) => item.type === 'file')) {
+      
       content = await uploadSingleFile(contentUploadRef, '应用内容包')
     }
 
+    
+
     let code = formData.value.code
     if (codeUploadRef.value && codeUploadRef.value.selectedItems.length > 0 && codeUploadRef.value.selectedItems.some((item: any) => item.type === 'file')) {
+      
       code = await uploadSingleFile(codeUploadRef, '源码包')
     }
-
+    
     showToast('正在提交编辑...', 'success')
 
     // Parse metadata (optional)
@@ -380,8 +401,11 @@ const handleSubmit = async () => {
       tags: formData.value.tags,
       version: formData.value.version,
       contentType: formData.value.contentType,
+      codeType:formData.value.contentType || 'application/zip',
       content: content
     }
+
+    
 
     const metaidData = {
       path: `@${props.metaApp.id}`,
@@ -446,6 +470,7 @@ const resetForm = () => {
     indexFile: '',
     version: 'v1.0.0',
     contentType: 'application/zip',
+    codeType:'application/zip',
     content: '',
     code: '',
     contentHash: '',
@@ -465,6 +490,77 @@ const resetForm = () => {
 const handleClose = () => {
   if (!isSubmitting.value) {
     isOpen.value = false
+  }
+}
+
+// Handle icon attachment changes
+const handleIconChange = (items: any[]) => {
+  if (items.length > 0) {
+    const item = items[0]
+    formData.value.icon = item.type === 'txid' ? item.fullPath : ''
+  }
+}
+
+const handleIconRemove = () => {
+  if (iconUploadRef.value?.selectedItems.length === 0) {
+    formData.value.icon = ''
+  }
+}
+
+// Handle cover image attachment changes
+const handleCoverChange = (items: any[]) => {
+  if (items.length > 0) {
+    const item = items[0]
+    formData.value.coverImg = item.type === 'txid' ? item.fullPath : ''
+  }
+}
+
+const handleCoverRemove = () => {
+  if (coverUploadRef.value?.selectedItems.length === 0) {
+    formData.value.coverImg = ''
+  }
+}
+
+// Handle intro images attachment changes
+const handleIntroImgsChange = () => {
+  if (introImgsUploadRef.value) {
+    const txidItems = introImgsUploadRef.value.selectedItems.filter((item: any) => item.type === 'txid')
+    formData.value.introImgs = txidItems.map((item: any) => item.fullPath)
+  }
+}
+
+const handleIntroImgsRemove = () => {
+  if (introImgsUploadRef.value) {
+    const txidItems = introImgsUploadRef.value.selectedItems.filter((item: any) => item.type === 'txid')
+    formData.value.introImgs = txidItems.map((item: any) => item.fullPath)
+  }
+}
+
+// Handle content attachment changes
+const handleContentChange = (items: any[]) => {
+  if (items.length > 0) {
+    const item = items[0]
+    formData.value.content = item.type === 'txid' ? item.fullPath : ''
+  }
+}
+
+const handleContentRemove = () => {
+  if (contentUploadRef.value?.selectedItems.length === 0) {
+    formData.value.content = ''
+  }
+}
+
+// Handle code attachment changes
+const handleCodeChange = (items: any[]) => {
+  if (items.length > 0) {
+    const item = items[0]
+    formData.value.code = item.type === 'txid' ? item.fullPath : ''
+  }
+}
+
+const handleCodeRemove = () => {
+  if (codeUploadRef.value?.selectedItems.length === 0) {
+    formData.value.code = ''
   }
 }
 </script>
@@ -526,7 +622,19 @@ const handleClose = () => {
                       <span class="w-1 h-6 bg-gradient-to-b from-purple-500 to-blue-500 rounded"></span>
                       基础信息
                     </h4>
-
+                      <!-- App Name -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        应用名称 <span class="text-red-500">*</span>
+                      </label>
+                      <input
+                        v-model="formData.appName"
+                        type="text"
+                        class="form-input"
+                        placeholder="请输入应用名称"
+                        required
+                      />
+                    </div>
                     <!-- Title -->
                     <div class="form-item">
                       <label class="form-label">
@@ -541,19 +649,7 @@ const handleClose = () => {
                       />
                     </div>
 
-                    <!-- App Name -->
-                    <div class="form-item">
-                      <label class="form-label">
-                        应用名称 <span class="text-red-500">*</span>
-                      </label>
-                      <input
-                        v-model="formData.appName"
-                        type="text"
-                        class="form-input"
-                        placeholder="请输入应用名称"
-                        required
-                      />
-                    </div>
+                  
 
                     <!-- Prompt (Optional for AI-generated apps) -->
                     <div class="form-item">
@@ -631,6 +727,8 @@ const handleClose = () => {
                         ref="iconUploadRef"
                         :max-files="1"
                         accepted-types="image/*"
+                        @items-selected="handleIconChange"
+                        @items-removed="handleIconRemove"
                       />
                       <p class="text-xs text-gray-500 mt-1">
                         格式将自动转换为 metafile://{`{PINID}`}
@@ -646,6 +744,8 @@ const handleClose = () => {
                         ref="coverUploadRef"
                         :max-files="1"
                         accepted-types="image/*"
+                        @items-selected="handleCoverChange"
+                        @items-removed="handleCoverRemove"
                       />
                       <p class="text-xs text-gray-500 mt-1">
                         格式将自动转换为 metafile://{`{PINID}`}
@@ -661,6 +761,8 @@ const handleClose = () => {
                         ref="introImgsUploadRef"
                         :max-files="5"
                         accepted-types="image/*"
+                        @items-selected="handleIntroImgsChange"
+                        @items-removed="handleIntroImgsRemove"
                       />
                       <p class="text-xs text-gray-500 mt-1">
                         可上传多张图片，格式将自动转换为 metafile://{`{PINID}`} 数组
@@ -670,12 +772,14 @@ const handleClose = () => {
                     <!-- Content Package -->
                     <div class="form-item">
                       <label class="form-label">
-                        应用内容包 <span class="text-gray-400 text-xs">(可选)</span>
+                        应用运行包 <span class="text-gray-400 text-xs">(可选)</span>
                       </label>
                       <ProtocolAttachmentUpload
                         ref="contentUploadRef"
                         :max-files="1"
                         accepted-types=".zip,.rar,.7z,.tar,.gz"
+                        @items-selected="handleContentChange"
+                        @items-removed="handleContentRemove"
                       />
                       <p class="text-xs text-gray-500 mt-1">
                         上传MetaApp内容，格式将自动转换为 metafile://{`{PINID}`}
@@ -691,6 +795,8 @@ const handleClose = () => {
                         ref="codeUploadRef"
                         :max-files="1"
                         accepted-types=".zip,.rar,.7z,.tar,.gz"
+                        @items-selected="handleCodeChange"
+                        @items-removed="handleCodeRemove"
                       />
                       <p class="text-xs text-gray-500 mt-1">
                         格式将自动转换为 metacode://{`{PINID}`}
@@ -767,6 +873,18 @@ const handleClose = () => {
                       </label>
                       <select v-model="formData.contentType" class="form-input">
                         <option v-for="contentType in contentTypeOptions" :key="contentType.value" :value="contentType.value">
+                          {{ contentType.value }} ({{ contentType.label }})
+                        </option>
+                      </select>
+                    </div>
+
+                     <!-- Content Type -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        源码类型
+                      </label>
+                      <select v-model="formData.codeType" class="form-input">
+                        <option v-for="contentType in codeTypeOptions" :key="contentType.value" :value="contentType.value">
                           {{ contentType.value }} ({{ contentType.label }})
                         </option>
                       </select>

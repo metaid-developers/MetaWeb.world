@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container">
+  <div :class="['app-container']">
     <!-- 页面加载遮罩 -->
     <div v-if="layoutStore.isShowPageLoading" class="page-loading-overlay">
       <div class="loading-spinner"></div>
@@ -10,12 +10,12 @@
     <Header />
 
     <!-- 主要内容区域 -->
-    <main class="main-content">
+    <main :class="['main-content']">
       <router-view />
     </main>
 
     <!-- Footer 底部 -->
-    <footer class="app-footer">
+    <footer v-if="route.name !== 'Develop'" class="app-footer">
       <div class="footer-content">
         <span class="footer-text">About MetalID</span>
         <span class="footer-text">About MetaBitcoin Network</span>
@@ -27,7 +27,7 @@
   </div>
 </template>
 <script setup lang='ts'>
-import {ref,onMounted,onUnmounted,onBeforeUnmount} from 'vue'
+import {ref,onMounted,onUnmounted,onBeforeUnmount,watch} from 'vue'
 import Header from '@/components/Header/Header.vue'
 import ConnectWalletModalVue from '@/components/ConnectWalletModal/ConnectWalletModal.vue'
 
@@ -40,9 +40,41 @@ import { type Network, useNetworkStore } from '@/stores/network'
 import { useLayoutStore } from '@/stores/layout'
 import {completeReload, sleep} from '@/utils/util'
 import { useConnectionModal } from './hooks/use-connection-modal'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
+
+// 监听路由变化，控制 html、body 和 #app 的滚动条
+// function toggleNoScroll(isDevelop: boolean) {
+//   const html = document.documentElement
+//   const body = document.body
+//   const app = document.getElementById('app')
+  
+//   if (isDevelop) {
+//     html.classList.add('no-scroll-develop')
+//     body.classList.add('no-scroll-develop')
+//     if (app) app.classList.add('no-scroll-develop')
+//   } else {
+//     html.classList.remove('no-scroll-develop')
+//     body.classList.remove('no-scroll-develop')
+//     if (app) app.classList.remove('no-scroll-develop')
+//   }
+// }
+
+// watch(
+//   () => route.name,
+//   (newName) => {
+//     toggleNoScroll(newName === 'Develop')
+//   },
+//   { immediate: true }
+// )
+
+// 组件卸载时清理类名
+// onBeforeUnmount(() => {
+//   toggleNoScroll(false)
+// })
+
 const accountInterval=ref()
 const rootStore=useRootStore()
 const connectionStore=useConnectionStore()
@@ -295,12 +327,35 @@ onBeforeUnmount(async () => {
   display: flex;
   flex-direction: column;
 }
+</style>
+
+<style lang='scss'>
+html.no-scroll-develop,
+body.no-scroll-develop {
+  height: 100%;
+  overflow: hidden;
+}
+
+#app.no-scroll-develop {
+  height: 100vh;
+  overflow: hidden;
+}
 
 .main-content {
   flex: 1;
   background: #F5F5F7;
   padding-bottom: 0;
   padding: 0 20px;
+ 
+  // &.no-scroll {
+  //   height: calc(100vh - var(--header-height, 60px));
+  //   overflow-y: auto;
+  //   box-sizing: border-box;
+    
+  //   @media (min-height: 750px) {
+  //     overflow-y: hidden;
+  //   }
+  // }
 }
 
 .app-footer {

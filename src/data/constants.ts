@@ -22,6 +22,7 @@ export const NodeName = {
     File:'file',
     MetaProtocol: 'metaprotocol',
     MetaApp: 'metaapp',
+    TestMetaApp: 'testmetaapp',
 } as const;
 
 export type NodeName = typeof NodeName[keyof typeof NodeName];
@@ -92,7 +93,7 @@ export const ProtocolCollection = {
             protocolContentType: 'application/json5', // 协议主体类型
             metadata: {} // 元数据
         },
-        contentType: 'application/json5',
+        contentType: 'application/json',
         encryption: '0',
         version: '1.0.0',
         encoding: 'utf-8'
@@ -101,6 +102,47 @@ export const ProtocolCollection = {
     [NodeName.MetaApp]: {
         protocol: 'metaapp',
         path: '/protocols/metaapp',
+        body:{
+            //MetaApp标题
+            title:"", 
+            //MetaApp应用名称
+            appName:"",
+            //MetaApp生成提示词，如AI生成项目则填写，如开发者自行开发的则不需要填写
+            prompt:"",
+            //MetaApp Icon,格式是metaifile://{PINID}
+            icon:"metafile://",
+            //MetaApp 封面图,格式是metaifile://{PINID}
+            coverImg:"metafile://",
+            //MetaApp 简介图,格式是metaifile://{PINID}数组
+            introImgs:["metafile://"],
+            //MetaApp 应用说明简介
+            intro:"introduction about this app",
+            //MetaApp 运行时环境
+            runtime:"browser/android/ios/windows/macOS/Linux",
+            //MetaApp 索引文件
+            indexFile:"",
+            //MetaApp 版本号，默认v1.0.1
+            version:"",
+            //MetaApp conetent类型，默认application/zip
+            contentType:"application/zip",
+            //MetaApp conetent,内容为要上链的MetaApp构建压缩包的上链资源，格式是metaifile://{PINID}
+            content:"metafile://",
+            //MetaApp conetent,内容为要上链的MetaApp源码的上链资源，格式是metacode://{PINID}
+            code:"metacode://",
+            //MetaApp conetent hash结果
+            contentHash:"xxx",
+            //MetaApp 可选扩展内容，格式可以是任意类型格式
+            metadata:"Arbitrary data"
+        },
+        contentType: 'application/json',
+        encryption: '0',
+        version: '1.0.0',
+        encoding: 'utf-8'
+    },
+
+     [NodeName.TestMetaApp]: {
+        protocol: 'testmetaapp',
+        path: '/protocols/testmetaapp',
         body:{
             //MetaApp标题
             title:"", 

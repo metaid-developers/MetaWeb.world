@@ -22,7 +22,7 @@
           <path d="M11 4H4C3.45 4 3 4.45 3 5V19C3 19.55 3.45 20 4 20H18C18.55 20 19 19.55 19 19V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        手动输入TXID
+        手动输入PINID
       </button>
     </div>
 
@@ -50,7 +50,6 @@
         <div class="upload-text">
           <h4>点击选择文件或拖拽文件到此处</h4>
           <p class="file-types">支持任意类型文件</p>
-          <p class="file-limit">单个文件大小限制: 1MB</p>
           <p class="upload-note">文件将在提交协议时上传到链上</p>
         </div>
       </div>
@@ -78,7 +77,7 @@
           v-model="txidInput"
           type="text"
           class="txid-input"
-          placeholder="请输入txid（如：9efda111d8...）"
+          placeholder="请输入PinId（如：9efda111d8...）"
           @keyup.enter="addTxidItem"
         />
         <button type="button" class="add-txid-btn" @click="addTxidItem">
@@ -89,7 +88,7 @@
           添加
         </button>
       </div>
-      <p class="txid-hint">输入完整的txid，系统将自动生成格式如：metafile://9efda111d8...i0</p>
+      <p class="txid-hint">输入完整的PinId，系统将自动生成格式如：metafile://9efda111d8...i0</p>
     </div>
 
     <!-- 已选择附件列表 -->
@@ -256,6 +255,8 @@ import { FileToAttachmentItem, IsEncrypt } from '@/lib/file'
 import { useCreateProtocols } from '@/hooks/use-create-protocols'
 import { useToast } from '@/components/Toast/useToast'
 import { TxComposer } from 'meta-contract'
+import {useUploadFileToChainDirect} from '@/hooks/useUploadFileToChainDirect'
+import {useChunkUpload} from '@/hooks/useChunkUpload'
 
 // 定义接口
 interface SelectedFileItem {
@@ -306,8 +307,10 @@ const txidInput = ref<string>('')
 const { createFile } = useCreateProtocols()
 const { showToast } = useToast()
 
+const {uploadFileToChainDirect}=useUploadFileToChainDirect()
+const {runChunkedUploadFlow} =useChunkUpload()
 // 文件大小限制 (1MB)
-const MAX_FILE_SIZE =1 * 1024 * 1024
+const MAX_FILE_SIZE =100 * 1024 * 1024
 
 // 验证文件
 const validateFile = (file: File): string | null => {
@@ -466,10 +469,61 @@ const addTxidItem = () => {
   showToast('已添加TXID引用', 'success')
 }
 
+// const uploadFilesToChain = async (_options?:CreatePinOptions={}): Promise<string[]> => {
+//   const txids: string[] = []
+
+//   for (const item of selectedItems.value) {
+//     if (item.type === 'txid') {
+//       // TXID类型：直接使用txid，不需要上传
+//       txids.push(item.fullPath)
+//     } else {
+//       // 文件类型：需要上传到链上
+//       try {
+//         // 1. 将文件转换为AttachmentItem
+//         const attachmentItem = await FileToAttachmentItem(item.file, IsEncrypt.No)
+
+//         // 2. 构建metaidData
+//         const metaidData = {
+//           path: '/file',
+//           body: attachmentItem.data,
+//           contentType: `${attachmentItem.fileType};binary`,
+//           encoding: 'binary' as const,
+//           version: '1.0.0',
+//           operation: 'create' as const
+//         }
+
+//         // 3. 构建options
+//         const options = {
+//           attachments: [attachmentItem],
+//           mime: attachmentItem.fileType,
+//           chain: 'mvc' as const,
+//           network: 'mainnet' as const,
+//           ..._options
+//         }
+
+//         // 4. 调用createFile方法上传到链上
+//         const result = await createFile(metaidData, options)
+
+//         const txid = result?.txid || result?.txids?.[0]
+//         if (!txid) {
+//           throw new Error('上传失败：未获取到交易ID')
+//         }
+
+//         txids.push(`metafile://${txid}i0`)
+//       } catch (error) {
+//         console.error(`文件 "${item.name}" 上传失败:`, error)
+//         throw new Error(`文件 "${item.name}" 上传失败: ${error instanceof Error ? error.message : '未知错误'}`)
+//       }
+//     }
+//   }
+
+//   return txids
+// }
+
 // 上传文件到链上（供外部调用）
 const uploadFilesToChain = async (_options?:CreatePinOptions={}): Promise<string[]> => {
   const txids: string[] = []
-
+  
   for (const item of selectedItems.value) {
     if (item.type === 'txid') {
       // TXID类型：直接使用txid，不需要上传
@@ -477,32 +531,47 @@ const uploadFilesToChain = async (_options?:CreatePinOptions={}): Promise<string
     } else {
       // 文件类型：需要上传到链上
       try {
-        // 1. 将文件转换为AttachmentItem
-        const attachmentItem = await FileToAttachmentItem(item.file, IsEncrypt.No)
+        // // 1. 将文件转换为AttachmentItem
+        // const attachmentItem = await FileToAttachmentItem(item.file, IsEncrypt.No)
 
-        // 2. 构建metaidData
-        const metaidData = {
-          path: '/file',
-          body: attachmentItem.data,
-          contentType: `${attachmentItem.fileType};binary`,
-          encoding: 'binary' as const,
-          version: '1.0.0',
-          operation: 'create' as const
-        }
+        // // 2. 构建metaidData
+        // const metaidData = {
+        //   path: '/file',
+        //   body: attachmentItem.data,
+        //   contentType: `${attachmentItem.fileType};binary`,
+        //   encoding: 'binary' as const,
+        //   version: '1.0.0',
+        //   operation: 'create' as const
+        // }
 
-        // 3. 构建options
-        const options = {
-          attachments: [attachmentItem],
-          mime: attachmentItem.fileType,
-          chain: 'mvc' as const,
-          network: 'mainnet' as const,
-          ..._options
-        }
+        // // 3. 构建options
+        // const options = {
+        //   attachments: [attachmentItem],
+        //   mime: attachmentItem.fileType,
+        //   chain: 'mvc' as const,
+        //   network: 'mainnet' as const,
+        //   ..._options
+        // }
 
         // 4. 调用createFile方法上传到链上
-        const result = await createFile(metaidData, options)
+        
+        let result
+        if(item.file.size > 5 * 1024 * 1024){
+          
+          result=await runChunkedUploadFlow({
+            file:item.file, 
+            asynchronous:false
+          })
+          
+        }else{
+          
+           result =await uploadFileToChainDirect(item.file) //await createFile(metaidData, options)
+           
+        }
 
-        const txid = result?.txid || result?.txids?.[0]
+        
+        
+        const txid = result?.txId
         if (!txid) {
           throw new Error('上传失败：未获取到交易ID')
         }
@@ -525,12 +594,12 @@ const processFiles = async (files: FileList) => {
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
 
-    // 验证文件
-    const error = validateFile(file)
-    if (error) {
-      showToast(error, 'warning')
-      continue
-    }
+    // // 验证文件
+    // const error = validateFile(file)
+    // if (error) {
+    //   showToast(error, 'warning')
+    //   continue
+    // }
 
     // 检查是否超过最大附件数量
     if (selectedItems.value.length + newItems.length >= props.maxFiles) {

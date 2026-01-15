@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
 
 interface Props {
@@ -11,6 +12,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
+
+const router = useRouter()
 
 const isOpen = computed({
   get: () => props.modelValue,
@@ -29,9 +32,18 @@ const viewTxid = () => {
   }
 }
 
-// 关闭弹窗
+// 关闭弹窗并跳转到协议详情页
 const handleClose = () => {
   isOpen.value = false
+  
+  // 如果有 txid，跳转到协议详情页并刷新
+  if (props.txid) {
+    const protocolId = `${props.txid}i0`
+    router.push(`/protocols/${protocolId}`).then(() => {
+      // 跳转成功后刷新页面
+      window.location.reload()
+    })
+  }
 }
 </script>
 

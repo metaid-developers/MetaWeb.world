@@ -12,7 +12,7 @@ const routes: Array<RouteRecordRaw> = [
     }
   },
   {
-    path: '/metaapp/:pinid',
+    path: '/metaapp/detail/:pinid',
     name: 'MetaAppDetail',
     component: () => import('@/views/MetaAppDetail.vue'),
   },
@@ -30,7 +30,14 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/ProtocolDetailView.vue'),
   
   },
- 
+  {
+    path: '/develop',
+    name: 'Develop',
+    component: () => import('@/views/Develop.vue'),
+    meta: { 
+      navKey: 'develop'
+    }
+  },
   // },
   // {
   //   path: '/services',
@@ -39,15 +46,6 @@ const routes: Array<RouteRecordRaw> = [
   //   meta: { 
      
   //     navKey: 'services'
-  //   }
-  // },
-  // {
-  //   path: '/develop',
-  //   name: 'Develop',
-  //   component: () => import('@/views/Protocol.vue'), // 临时使用相同组件
-  //   meta: { 
-    
-  //     navKey: 'develop'
   //   }
   // },
   // {
@@ -82,7 +80,7 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   document.title = `${to.meta.title || 'MetaWeb'} - MetaWeb World`
 
-  // 检测是否是外部直接访问 /metaapp/:pinid
+  // 检测是否是外部直接访问 /metaapp/detail/:pinid
   // 如果 from.name 为 undefined，说明是首次访问（外部跳转）
   const layoutStore = useLayoutStore()
   if (to.name === 'MetaAppDetail' && !from.name) {

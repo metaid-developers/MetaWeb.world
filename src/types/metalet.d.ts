@@ -119,6 +119,20 @@ export interface MetaletWallet {
       dataDependsOn?: number
     }>
   }) => Promise<{ signedTransactions: SignedTransaction[] }>
+
+ signTransaction: (params: {
+    transaction:{
+      txHex: string
+      address: string
+      inputIndex: number
+      scriptHex: string
+      satoshis: number
+      sigtype?: number
+      path?: string
+      hasMetaId?: boolean
+      dataDependsOn?: number
+    }
+  }) => Promise<any>,
   
   // 支付
   pay: (params: {

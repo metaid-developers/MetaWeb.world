@@ -55,8 +55,8 @@ export const useChainStore = defineStore('chain', () => {
       hourFee: 1,
       economyFee: 1,
       minimumFee: 1,
-      customizeFee: 1,
-      selectedFeeType: 'fastestFee',
+      customizeFee: 1, //fastestFee
+      selectedFeeType: 'economyFee',
       lastUpdated: 0,
     },
     currentChain: 'mvc',
@@ -97,9 +97,9 @@ export const useChainStore = defineStore('chain', () => {
       const feeRates = await fetchFeeRates(MVC_FEE_RATE_URL)
       state.value.mvc.fastestFee = feeRates.fastestFee
       state.value.mvc.halfHourFee = feeRates.halfHourFee
-      state.value.mvc.hourFee = feeRates.hourFee
+      state.value.mvc.hourFee =feeRates.hourFee
       state.value.mvc.economyFee = 1
-      state.value.mvc.minimumFee = feeRates.minimumFee
+      state.value.mvc.minimumFee =feeRates.minimumFee
       state.value.mvc.lastUpdated = Date.now()
     } catch (error) {
       console.error('Failed to update MVC fee rates:', error)

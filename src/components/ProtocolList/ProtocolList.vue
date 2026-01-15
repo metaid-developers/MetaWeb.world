@@ -38,48 +38,22 @@
           <ProtocolCard
             v-for="protocol in protocols"
             :key="protocol.id"
-            :id="protocol.id"
+            :id="protocol.lastId"
+            :lastId="protocol.lastId"
             :protocolName="protocol.protocolName"
             :title="protocol.title"
             :description="protocol.description"
+            :address="protocol.address"
+            :timestamp="protocol.timestamp"
           />
         </div>
 
-        <!-- 分页组件 -->
-        <div v-if="total > pageSize" class="pagination-container">
-          <div class="pagination">
-            <button
-              class="pagination-btn"
-              :disabled="currentPage === 1"
-              @click="handlePageChange(currentPage - 1)"
-            >
-              上一页
-            </button>
-
-            <div class="pagination-pages">
-              <button
-                v-for="page in totalPages"
-                :key="page"
-                class="pagination-page"
-                :class="{ active: page === currentPage }"
-                @click="handlePageChange(page)"
-              >
-                {{ page }}
-              </button>
-            </div>
-
-            <button
-              class="pagination-btn"
-              :disabled="currentPage === totalPages"
-              @click="handlePageChange(currentPage + 1)"
-            >
-              下一页
-            </button>
-          </div>
-
-          <div class="pagination-info">
-            共 {{ total }} 条，第 {{ currentPage }} / {{ totalPages }} 页
-          </div>
+        <!-- 无限滚动哨兵元素 -->
+        <div ref="sentinelRef" class="scroll-sentinel" v-if="hasMore">
+          <div class="loading-more" v-if="isLoadingMore">加载中...</div>
+        </div>
+        <div v-if="!hasMore && protocols.length > 0" class="no-more-data">
+          没有更多数据了
         </div>
       </div>
     </div>
@@ -90,7 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, type Ref, onMounted, computed } from 'vue'
+import { ref, type Ref, onMounted, onUnmounted, computed } from 'vue'
+import { nextTick } from 'vue'
 import ProtocolCard from '@/components/ProtocolCard/ProtocolCard.vue'
 import SubmitProtocolModal from '@/components/SubmitProtocolModal/SubmitProtocolModal.vue'
 import { useToast } from '@/components/Toast/useToast'
@@ -102,6 +77,9 @@ interface Protocol {
   description: string
   id: string
   protocolName:string
+  address:string
+  timestamp:number
+  lastId?:string
 }
 
 interface ContentSummary {
@@ -118,89 +96,164 @@ const { showToast } = useToast()
 
 const protocols: Ref<Protocol[]> = ref([])
 const loading = ref(false)
-const currentPage = ref(1)
-const pageSize = ref(20)
+const pageSize = 20
 const total = ref(0)
 
-// 计算总页数
-const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
+// 无限滚动相关状态
+const nextCursor = ref<number | null>(0)
+const hasMore = ref(true)
+const isLoadingMore = ref(false)
+const sentinelRef = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
 
 // 获取协议列表
-async function fetchProtocols(page: number = 1) {
-  loading.value = true
+async function fetchProtocols(isLoadMore: boolean = false) {
+  if (isLoadingMore.value) return
+  
   try {
+    if (!isLoadMore) {
+      loading.value = true
+      // 重置状态
+      nextCursor.value = 0
+      hasMore.value = true
+    } else {
+      
+      isLoadingMore.value = true
+    }
+    
+
+
+    const cursor = isLoadMore ? (nextCursor.value ?? 0) : 0
+    
     const response = await getPinListByPath({
       path: '/protocols/metaprotocol',
-      cursor: page - 1,
-      size: pageSize.value
+      cursor: cursor,
+      size: pageSize
     })
 
-    if (response.list && response.list.length > 0) {
-      // 将PinInfo转换为Protocol格式
-      protocols.value = response.list
-        .map((pin: PinInfo) => {
-          
-          try {
-            let contentSummary: ContentSummary = {}
+    // 将PinInfo转换为Protocol格式
+    const processedList: Protocol[] = (response.list || [])
+      .map((pin: PinInfo) => {
+        try {
+          let contentSummary: ContentSummary = {}
 
-            // 检查ContentSummary的类型
-            if (pin.contentSummary) {
-              // 如果已经是对象，直接使用
-              if (typeof pin.contentSummary === 'object') {
-                contentSummary = pin.contentSummary as any
-              }
-              // 如果是字符串，尝试JSON解析
-              else if (typeof pin.contentSummary === 'string') {
-                try {
-                  contentSummary = JSON.parse(pin.contentSummary)
-                } catch (e) {
-                  console.error('JSON解析失败:', e, 'ContentSummary:', pin.contentSummary)
-                }
-              }
+          // 检查ContentSummary的类型
+          if (pin.contentSummary) {
+            // 如果已经是对象，直接使用
+            if (typeof pin.contentSummary === 'object') {
+              contentSummary = pin.contentSummary as any
             }
-
-            console.log('解析后的contentSummary:', contentSummary, 'from pin:', pin)
-
-            return {
-              title: contentSummary.title || '未命名协议',
-              description: contentSummary.intro || '暂无描述',
-              id: pin.id || '',
-              protocolName:contentSummary.protocolName || ''
-            }
-          } catch (error) {
-            console.error('解析ContentSummary失败:', error)
-            // 如果解析失败，使用默认值
-            return {
-              title: '未命名协议',
-              description: '暂无描述',
-              id: pin.id || '',
-              protocolName:''
+            // 如果是字符串，尝试JSON解析
+            else if (typeof pin.contentSummary === 'string') {
+              try {
+                contentSummary = JSON.parse(pin.contentSummary)
+              } catch (e) {
+                console.error('JSON解析失败:', e, 'ContentSummary:', pin.contentSummary)
+              }
             }
           }
-        })
-        .filter(protocol => !FilterMetaProtocolPinList.includes(protocol.id)) // 过滤掉没有path的项
+          
+          return {
+            timestamp: pin.timestamp * 1000,
+            address: pin.address,
+            title: contentSummary.title || '未命名协议',
+            description: contentSummary.intro || '暂无描述',
+            id: pin.id,
+            protocolName: contentSummary.protocolName || '',
+            lastId: pin.modify_history && pin.modify_history.length ? pin.modify_history[pin.modify_history.length - 1] : pin.id
+          }
+        } catch (error) {
+          console.error('解析ContentSummary失败:', error)
+          // 如果解析失败，使用默认值
+          return {
+            title: '未命名协议',
+            description: '暂无描述',
+            id: pin.id || '',
+            protocolName: '',
+            timestamp: Date.now(),
+            address: '',
+            lastId: pin.id || ''
+          }
+        }
+      })
+      .filter(protocol => !FilterMetaProtocolPinList.includes(protocol.id)) // 过滤掉没有path的项
 
+    // 如果是加载更多，追加到现有列表；否则替换列表
+    if (isLoadMore) {
+      protocols.value = [...protocols.value, ...processedList]
       total.value = response.total
     } else {
-      protocols.value = []
-      total.value = 0
+      protocols.value = processedList
+      total.value = response.total
     }
+
+    // 更新 nextCursor
+    nextCursor.value = (response as any).nextCursor ?? null
+    hasMore.value =response.list && response.list.length && nextCursor.value !== null && response.total > protocols.value.length
   } catch (error) {
     console.error('获取协议列表失败:', error)
     showToast('获取协议列表失败', 'error')
-    protocols.value = []
-    total.value = 0
+    if (!isLoadMore) {
+      protocols.value = []
+      total.value = 0
+    }
   } finally {
     loading.value = false
+    isLoadingMore.value = false
+    
+    // 在加载完成后，重新初始化 Intersection Observer
+    await nextTick()
+    if (hasMore.value && sentinelRef.value) {
+      initIntersectionObserver()
+    }
   }
 }
 
-// 分页切换
-function handlePageChange(page: number) {
-  currentPage.value = page
-  fetchProtocols(page)
-  // 滚动到顶部
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+// 加载更多数据
+async function loadMore() {
+  if (!hasMore.value || isLoadingMore.value || nextCursor.value === null) {
+    return
+  }
+  await fetchProtocols(true)
+}
+
+// 初始化 Intersection Observer
+function initIntersectionObserver() {
+  if (!sentinelRef.value) {
+    console.warn('哨兵元素不存在，无法初始化 Observer')
+    return
+  }
+  
+  // 如果已有 observer，先断开
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && hasMore.value && !isLoadingMore.value) {
+          loadMore()
+        }
+      })
+    },
+    {
+      root: null,
+      rootMargin: '100px', // 提前100px开始加载
+      threshold: 0.1
+    }
+  )
+
+  observer.observe(sentinelRef.value)
+}
+
+// 清理 Intersection Observer
+function cleanupIntersectionObserver() {
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
 }
 
 function openSubmitModal() {
@@ -211,8 +264,16 @@ function openSubmitModal() {
 }
 
 // 组件挂载时获取协议列表
-onMounted(() => {
-  fetchProtocols(1)
+onMounted(async () => {
+  await fetchProtocols(false)
+  // 初始化 Intersection Observer
+  await nextTick()
+  initIntersectionObserver()
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  cleanupIntersectionObserver()
 })
 </script>
 
@@ -434,106 +495,30 @@ onMounted(() => {
   }
 }
 
-// 分页样式
-.pagination-container {
-  margin-top: 40px;
+// 无限滚动哨兵元素样式
+.scroll-sentinel {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  gap: 16px;
+  padding: 24px 0;
+  min-height: 60px;
 
-  @media (max-width: 480px) {
-    margin-top: 30px;
-    gap: 12px;
+  .loading-more {
+    color: #6b7280;
+    font-size: 14px;
   }
 }
 
-.pagination {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  @media (max-width: 480px) {
-    gap: 8px;
-  }
-}
-
-.pagination-btn {
-  padding: 8px 16px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  color: #374151;
+.no-more-data {
+  text-align: center;
+  padding: 24px 0;
+  color: #9ca3af;
   font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover:not(:disabled) {
-    background: #f9fafb;
-    border-color: #667eea;
-    color: #667eea;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  @media (max-width: 480px) {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-}
-
-.pagination-pages {
-  display: flex;
-  gap: 8px;
-
-  @media (max-width: 480px) {
-    gap: 4px;
-  }
-}
-
-.pagination-page {
-  min-width: 36px;
-  height: 36px;
-  padding: 8px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  color: #374151;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: #f9fafb;
-    border-color: #667eea;
-    color: #667eea;
-  }
-
-  &.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-color: transparent;
-    color: white;
-  }
-
-  @media (max-width: 480px) {
-    min-width: 32px;
-    height: 32px;
-    padding: 6px;
-    font-size: 13px;
-  }
-}
-
-.pagination-info {
-  font-size: 14px;
-  color: #6b7280;
-
-  @media (max-width: 480px) {
-    font-size: 13px;
-  }
 }
 </style>
+
+
+
+
+
+

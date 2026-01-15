@@ -7,7 +7,8 @@ export interface AppConfig {
     debug: boolean;
   };
   api: {
-   
+    metafsUrl:string
+    baseUrl:string
     MAN_BASE_URL:string;
     timeout: number;
     retryAttempts: number;

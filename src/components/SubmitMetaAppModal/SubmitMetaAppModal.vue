@@ -61,6 +61,21 @@ const contentTypeOptions = [
   { value: 'application/octet-stream', label: '二进制流' }
 ]
 
+
+// MIME type options
+const codeTypeOptions = [
+  { value: 'application/zip', label: 'ZIP压缩包' },
+  { value: 'application/x-tar', label: 'TAR压缩包' },
+  { value: 'application/x-7z-compressed', label: '7Z压缩包' },
+  { value: 'application/x-rar-compressed', label: 'RAR压缩包' },
+  { value: 'application/gzip', label: 'GZIP压缩包' },
+  { value: 'application/json', label: 'JSON数据' },
+  { value: 'application/xml', label: 'XML文档' },
+  { value: 'text/html', label: 'HTML网页' },
+  { value: 'text/css', label: 'CSS样式表' },
+  { value: 'application/javascript', label: 'JavaScript文件' },
+]
+
 // Popular app tags
 const popularTags = [
   // '游戏', '工具', '社交', '娱乐', '教育',
@@ -111,6 +126,7 @@ const formData = ref({
   indexFile: '',
   version: 'v1.0.0',
   contentType: 'application/zip',
+  codeType:'application/zip',
   content: '',
   code: '',
   contentHash: '',
@@ -180,6 +196,7 @@ const uploadMultipleFiles = async (uploadRef: any, fieldName: string): Promise<s
 
 // Submit form
 const handleSubmit = async () => {
+  
   // Validate all required fields: title, appName, icon, coverImg, runtime
   const requiredFields = [
     { name: '标题', value: formData.value.title.trim() },
@@ -214,11 +231,10 @@ const handleSubmit = async () => {
 
   try {
     isSubmitting.value = true
-
     // Upload required files
     const icon = await uploadSingleFile(iconUploadRef, '应用图标')
     const coverImg = await uploadSingleFile(coverUploadRef, '封面图')
-
+    
     // Upload optional files
     const introImgs = await uploadMultipleFiles(introImgsUploadRef, '简介图')
     const content = await uploadSingleFile(contentUploadRef, '应用内容包')
@@ -254,6 +270,7 @@ const handleSubmit = async () => {
       tags:formData.value.tags,
       version: formData.value.version,
       contentType: formData.value.contentType,
+      codeType:formData.value.codeType,
       content: content
 
     }
@@ -347,6 +364,7 @@ const resetForm = () => {
     indexFile: '',
     version: 'v1.0.0',
     contentType: 'application/zip',
+    codeType:'application/zip',
     content: '',
     code: '',
     contentHash: '',
@@ -428,6 +446,19 @@ const handleClose = () => {
                       基础信息
                     </h4>
 
+                      <!-- App Name -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        应用名称 <span class="text-red-500">*</span>
+                      </label>
+                      <input
+                        v-model="formData.appName"
+                        type="text"
+                        class="form-input"
+                        placeholder="请输入应用名称"
+                        required
+                      />
+                    </div>
                     <!-- Title -->
                     <div class="form-item">
                       <label class="form-label">
@@ -442,19 +473,7 @@ const handleClose = () => {
                       />
                     </div>
 
-                    <!-- App Name -->
-                    <div class="form-item">
-                      <label class="form-label">
-                        应用名称 <span class="text-red-500">*</span>
-                      </label>
-                      <input
-                        v-model="formData.appName"
-                        type="text"
-                        class="form-input"
-                        placeholder="请输入应用名称"
-                        required
-                      />
-                    </div>
+                  
 
                     <!-- Prompt (Optional for AI-generated apps) -->
                     <div class="form-item">
@@ -571,7 +590,7 @@ const handleClose = () => {
                     <!-- Content Package -->
                     <div class="form-item">
                       <label class="form-label">
-                        应用内容包 <span class="text-gray-400 text-xs">(可选)</span>
+                        应用运行包 <span class="text-gray-400 text-xs">(可选)</span>
                       </label>
                       <ProtocolAttachmentUpload
                         ref="contentUploadRef"
@@ -669,6 +688,21 @@ const handleClose = () => {
                         </option>
                       </select>
                     </div>
+
+                       <!-- Code Type -->
+                    <div class="form-item">
+                      <label class="form-label">
+                        源码类型
+                      </label>
+                      <select v-model="formData.codeType" class="form-input">
+                        <option v-for="contentType in codeTypeOptions" :key="contentType.value" :value="contentType.value">
+                          {{ contentType.value }} ({{ contentType.label }})
+                        </option>
+                      </select>
+                    </div>
+
+
+
 
                     <!-- Content Hash (Optional) -->
                     <div class="form-item">

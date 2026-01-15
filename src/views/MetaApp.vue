@@ -48,7 +48,7 @@
 
         <!-- App Cards Grid -->
         <div class="apps-grid" v-if="metaAppList.list?.length">
-          <div class="app-card" v-for="item in metaAppList.list" :key="item.id" >
+          <div class="app-card" v-for="item in metaAppList.list" :key="item.id" @click="handleCardClick(item)">
             <!-- 卡片预览图 -->
             <div class="card-preview">
               <img class="app-cover" :src="getCoverUrl(item.contentSummary?.coverImg)" alt="">
@@ -66,10 +66,9 @@
                    </div>
                    <div class="info-bottom">
                     <div class="app-pin-copy">
-                      <span>PINID: {{ formatPinId(item.id) }}</span>
-                      <svg @click.stop="copyPinId(item.id)" class="copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <path d="M8 4V16C8 17.1046 8.89543 18 10 18H18C19.1046 18 20 17.1046 20 16V7.24162C20 6.71101 19.7893 6.20215 19.4142 5.82678L16.1716 2.58436C15.7962 2.20898 15.2874 1.99831 14.7568 1.99831H10C8.89543 1.99831 8 2.89374 8 3.99831V4ZM10 4H14V7C14 7.55228 14.4477 8 15 8H18V16H10V4Z" fill="currentColor"/>
-                        <path d="M4 8V20C4 21.1046 4.89543 22 6 22H14C15.1046 22 16 21.1046 16 20V19H14V20H6V8H4Z" fill="currentColor"/>
+                      <span>Txid: {{item.modify_history && item.modify_history.length > 0 ? formatPinId(item.modify_history[item.modify_history.length - 1].slice(0,-2)) : formatPinId(item.id.slice(0,-2)) }}</span>
+                      <svg @click.stop="item.modify_history && item.modify_history.length > 0 ? openTxLink(item.modify_history[item.modify_history.length - 1].slice(0,-2)) : openTxLink(item.id.slice(0,-2))" class="link-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 6H6C4.89543 6 4 6.89543 4 8V18C4 19.1046 4.89543 20 6 20H16C17.1046 20 18 19.1046 18 18V14M14 4H20M20 4V10M20 4L10 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
                     </div>
                    </div>
@@ -123,7 +122,7 @@
                       />
                         <div class="author flex flex-col">
                           <span class="name">{{item.userInfo?.name || item.userInfo?.metaid?.slice(0,6)}}</span>
-                          <span class="metaid">METAID: {{ item.userInfo?.metaid?.slice(0,6) }}</span>
+                          <span class="metaid">MetaID: {{ item.userInfo?.metaid?.slice(0,6) }}</span>
                         </div>
             
                   </div>
@@ -133,55 +132,64 @@
                 </div>
 
                 <div class="action-buttons ">
-                  <button class="btn-download rounded-full" @click.stop="handleDownload(item)">
-                    <span>
-                      下载
-                    </span>
-                  </button>
+                      <template v-if="getDeployStatus(item.id).deployStatus && (getDeployStatus(item.id).deployStatus == 'failed' ) ">
+                    <!-- 部署中状态 -->
+                    <button class="btn-deploying rounded-full" disabled>
+                      <svg class="loading-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"/>
+                        <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" fill="currentColor"/>
+                      </svg>
+                      <span>最新版本部署失败</span>
+                    </button>
+                  </template>
+
+
+                  <template v-else-if="getDeployStatus(item.id).deployStatus && (getDeployStatus(item.id).deployStatus !== 'completed' ) ">
+                    <!-- 部署中状态 -->
+                    <button class="btn-deploying rounded-full" disabled>
+                      <svg class="loading-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"/>
+                        <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" fill="currentColor"/>
+                      </svg>
+                      <span>部署中</span>
+                    </button>
+                  </template>
+                
+                  <template v-else>
+                    <!-- 正常状态或旧版本 -->
+                    <button 
+                      class="btn-download rounded-full" 
+                      @click.stop="handleDownload(item)"
+                      :title="getDeployStatus(item.id).isOldVersion ? '上一版本' : ''"
+                    >
+                      <span>
+                        下载{{ getDeployStatus(item.id).isOldVersion ? '(上一版本)' : '' }}
+                      </span>
+                    </button>
                  
-                  <button class="btn-run rounded-full" @click="handleRun(item)">
-                    <span>
-                      运行
-                    </span>
-                  </button>
+                    <button 
+                      class="btn-run rounded-full" 
+                      @click.stop="handleRun(item)"
+                      :title="getDeployStatus(item.id).isOldVersion ? '上一版本' : ''"
+                      v-if="showRunBtn(item)"
+                    >
+                      <span>
+                        运行{{ getDeployStatus(item.id).isOldVersion ? '(上一版本)' : '' }}
+                      </span>
+                    </button>
+                  </template>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Pagination -->
-        <div class="pagination" v-if="totalPages > 0">
-          <button
-            class="pagination-btn"
-            @click="goToPrevPage"
-            :disabled="currentPage === 1"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-
-          <template v-for="(page, index) in pageNumbers" :key="index">
-            <span v-if="page === '...'" class="pagination-ellipsis">...</span>
-            <button
-              v-else
-              :class="['pagination-number', { active: currentPage === page }]"
-              @click="goToPage(page as number)"
-            >
-              {{ page }}
-            </button>
-          </template>
-
-          <button
-            class="pagination-btn"
-            @click="goToNextPage"
-            :disabled="!hasNextPage"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
+        <!-- 无限滚动哨兵元素 -->
+        <div ref="sentinelRef" class="scroll-sentinel" v-if="hasMore">
+          <div class="loading-more" v-if="isLoadingMore">加载中...</div>
+        </div>
+        <div v-if="!hasMore && metaAppList.list?.length > 0" class="no-more-data">
+          没有更多数据了
         </div>
       </div>
 
@@ -194,13 +202,16 @@
   </template>
 
   <script setup lang="ts">
-  import { ref, onMounted, computed, type Ref } from 'vue'
+  import { ref, onMounted, onUnmounted, computed, type Ref } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { nextTick } from 'vue'
   import Banner from '@/components/Banner/Banner.vue'
   import SubmitMetaAppModal from '@/components/SubmitMetaAppModal/SubmitMetaAppModal.vue'
   import EditMetaAppModal from '@/components/EditMetaAppModal/EditMetaAppModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/components/Toast/useToast'
 import { type AddressPinListResponse,type PinInfo,  getPinListByPath } from "@/api/ManV2";
+import { getMetaAppByFirstPinId, type MetaAppResponse, } from "@/api/appApi";
 import AiImg from '@/assets/images/ai.svg'
 import DefaultImg from "@/assets/images/release_add_img.svg";
 import {getUserInfoByAddress} from '@/api/man'
@@ -216,6 +227,7 @@ import { FilterMetaAppPinList } from "@/data/constants";
 
   const selectedCategory = ref('all')
   const userStore=useUserStore()
+  const router = useRouter()
   const searchQuery = ref('')
   const { showToast } =useToast()
   const showSubmitModal = ref(false)
@@ -228,88 +240,67 @@ import { FilterMetaAppPinList } from "@/data/constants";
   // 追踪每个 app-card 的 userInfo 加载状态
 const userInfoLoadingMap = ref<Map<string, boolean>>(new Map())
 
-  // 分页相关状态
-  const currentPage = ref(1)
-  const pageSize = 8
+  // 部署状态类型定义
+interface DeployStatus {
+  isDeployed: boolean // 是否已部署
+  isLatestVersion: boolean // 是否为最新版本
+  deployStatus: 'pending' | 'processing' | 'completed' | 'failed' | null // 部署状态
+  isOldVersion: boolean // 是否为旧版本
+}
 
-  // 计算总页数
-  const totalPages = computed(() => {
-    return Math.ceil(metaAppList.value.total / pageSize)
-  })
+  // 追踪每个 app-card 的部署状态
+const deployStatusMap = ref<Map<string, DeployStatus>>(new Map())
+  
+  // 轮询定时器
+let pollingTimer: ReturnType<typeof setInterval> | null = null
 
-  // 计算是否有下一页
-  const hasNextPage = computed(() => {
-    return metaAppList.value.total > currentPage.value * pageSize
-  })
+  // 无限滚动相关状态
+  const pageSize = 20
+  const nextCursor = ref<number | null>(0)
+  const hasMore = ref(true)
+  const isLoadingMore = ref(false)
+  const sentinelRef = ref<HTMLElement | null>(null)
+  let observer: IntersectionObserver | null = null
 
   const getCoverUrl = (coverImg: string): string => {
     if(!coverImg) return DefaultImg
   if (coverImg.startsWith('metafile://')) {
     const pinId = coverImg.replace('metafile://', '')
-    return `https://man.metaid.io/content/${pinId}`
+    return `${import.meta.env.VITE_METAFS_INDEXER_URL}/${pinId}`
   }
   return coverImg
 }
 
-  // 生成分页按钮显示数组
-  const pageNumbers = computed(() => {
-    const total = totalPages.value
-    const current = currentPage.value
-    const pages: (number | string)[] = []
-
-    if (total <= 7) {
-      // 总页数小于等于7，全部显示
-      for (let i = 1; i <= total; i++) {
-        pages.push(i)
-      }
-    } else {
-      // 总页数大于7，智能显示
-      if (current <= 3) {
-        // 当前页在前面
-        for (let i = 1; i <= 5; i++) {
-          pages.push(i)
-        }
-        pages.push('...')
-        pages.push(total)
-      } else if (current >= total - 2) {
-        // 当前页在后面
-        pages.push(1)
-        pages.push('...')
-        for (let i = total - 4; i <= total; i++) {
-          pages.push(i)
-        }
-      } else {
-        // 当前页在中间
-        pages.push(1)
-        pages.push('...')
-        for (let i = current - 1; i <= current + 1; i++) {
-          pages.push(i)
-        }
-        pages.push('...')
-        pages.push(total)
-      }
-    }
-
-    return pages
-  })
-
   // 封装获取MetaApp列表的函数
-  async function fetchMetaAppList(page: number = 1) {
+  async function fetchMetaAppList(isLoadMore: boolean = false) {
+    
+    if (isLoadingMore.value) return
+    
     try {
-      const cursor = (page - 1) * pageSize
+      isLoadingMore.value = true
+      
+      // 如果不是加载更多，重置状态
+      if (!isLoadMore) {
+        
+        nextCursor.value = 0
+        hasMore.value = true
+      }
+      
+      const cursor = isLoadMore ? (nextCursor.value ?? 0) : 0
+      
       const result = await getPinListByPath({
         path: '/protocols/metaapp',
-        cursor,
+        cursor: cursor,
         size: pageSize
       })
 
       // 处理contentSummary的JSON序列化
+      let processedList: PinInfo[] = []
       if (result && result.list && result.list.length > 0) {
-        result.list = result.list.map(item => {
+        processedList = result.list.map(item => {
           if (item.contentSummary) {
             try {
               item.contentSummary = JSON.parse(item.contentSummary)
-              
             } catch (error) {
               console.error('解析contentSummary失败:', error, item.contentSummary)
             }
@@ -318,16 +309,56 @@ const userInfoLoadingMap = ref<Map<string, boolean>>(new Map())
         }).filter((item)=>!FilterMetaAppPinList.includes(item.id) )
       }
 
-      metaAppList.value = result
-        if(metaAppList.value.list && metaAppList.value.list.length)
-        for (let item of metaAppList.value.list) {
-        loadUserInfo(item)
+      // 如果是加载更多，追加到现有列表；否则替换列表
+      if (isLoadMore) {
+        metaAppList.value.list = [...metaAppList.value.list, ...processedList]
+        metaAppList.value.total = result.total
+      } else {
+        metaAppList.value = {
+          list: processedList,
+          total: result.total
         }
-      currentPage.value = page
+      }
+      
+      // 更新 nextCursor
+      nextCursor.value = (result as any).nextCursor ?? null
+      hasMore.value =result.list && result.list.length && nextCursor.value !== null && result.total > metaAppList.value.list?.length
+      console.log("hasMore.value",hasMore.value)
+      // 处理每个 item 的部署状态和用户信息
+      if(processedList.length > 0) {
+        for (let item of processedList) {
+          checkDeployStatus(item)
+          loadUserInfo(item)
+        }
+      }
+      
+      // 如果轮询未启动，启动轮询
+      if (!pollingTimer) {
+        startPolling()
+      }
     } catch (error) {
       console.error('获取MetaApp列表失败:', error)
       showToast('获取MetaApp列表失败', 'error')
+    } finally {
+      isLoadingMore.value = false
+      
+      // 在加载完成后，重新初始化 Intersection Observer
+      // 使用 nextTick 确保 DOM 已更新，哨兵元素已重新渲染
+      await nextTick()
+      if (hasMore.value && sentinelRef.value) {
+        initIntersectionObserver()
+      }
     }
+  }
+
+  // 加载更多数据
+  async function loadMore() {
+    if (!hasMore.value || isLoadingMore.value || nextCursor.value === null) {
+      console.log('loadMore 被阻止:', { hasMore: hasMore.value, isLoadingMore: isLoadingMore.value, nextCursor: nextCursor.value })
+      return
+    }
+    console.log('开始加载更多数据，nextCursor:', nextCursor.value)
+    await fetchMetaAppList(true)
   }
 
   // 异步加载用户信息
@@ -353,24 +384,141 @@ const loadUserInfo = async (app: PinInfo) => {
   }
 }
 
-  // 上一页
-  function goToPrevPage() {
-    if (currentPage.value > 1) {
-      fetchMetaAppList(currentPage.value - 1)
+  // 规范化 content 字段用于比较（移除 metafile:// 前缀）
+const normalizeContent = (content: string): string => {
+  if (!content) return ''
+  // 移除 metafile:// 前缀以便比较
+  return content.replace(/^metafile:\/\//, '')
+}
+
+  // 检查并更新部署状态
+const checkDeployStatus = async (item: PinInfo) => {
+  try {
+    const deployInfo = await getMetaAppByFirstPinId({ firstPinId: item.id })
+    
+    // 对比 item.id 是否等于 deploy_info.first_pin_id
+    if (deployInfo.deploy_info && item.id === deployInfo.deploy_info.first_pin_id) {
+      
+      const itemContent = normalizeContent(item.contentSummary?.content || '')
+      const deployContent = normalizeContent(deployInfo.deploy_info.content || '')
+      const deployStatus = deployInfo.deploy_info.deploy_status
+      
+      // 判断是否为最新版本
+      const isLatestVersion = itemContent === deployContent
+      
+      // 如果是最新版本且部署完成，正常显示
+      // 如果不是最新版本但部署完成，显示旧版本
+      // 如果部署中（不是 completed），显示部署中状态
+      const status: DeployStatus = {
+        isDeployed: true,
+        isLatestVersion: isLatestVersion,
+        deployStatus: deployStatus,
+        isOldVersion: !isLatestVersion && deployStatus === 'completed'
+      }
+      
+      deployStatusMap.value.set(item.id, status)
+    } else {
+      // 如果没有找到部署信息，设置为未部署状态
+      deployStatusMap.value.set(item.id, {
+        isDeployed: false,
+        isLatestVersion: false,
+        deployStatus: null,
+        isOldVersion: false
+      })
     }
+  } catch (error) {
+    console.error(`Failed to check deploy status for MetaApp ${item.id}:`, error)
+    // 出错时设置为未部署状态
+    deployStatusMap.value.set(item.id, {
+      isDeployed: false,
+      isLatestVersion: false,
+      deployStatus: null,
+      isOldVersion: false
+    })
+  }
+}
+
+  // 获取部署状态
+const getDeployStatus = (itemId: string): DeployStatus => {
+  return deployStatusMap.value.get(itemId) || {
+    isDeployed: false,
+    isLatestVersion: false,
+    deployStatus: null,
+    isOldVersion: false
+  }
+}
+
+  // 轮询检查所有 MetaApp 的部署状态
+const pollDeployStatus = async () => {
+  if (!metaAppList.value.list || metaAppList.value.list.length === 0) {
+    return
+  }
+  
+  // 遍历所有 MetaApp，异步检查部署状态
+  for (const item of metaAppList.value.list) {
+    await checkDeployStatus(item)
+  }
+}
+
+  // 启动轮询
+const startPolling = () => {
+  // 如果已有定时器，先清除
+  if (pollingTimer) {
+    clearInterval(pollingTimer)
+  }
+  
+  // 每 10 秒轮询一次
+  pollingTimer = setInterval(() => {
+    pollDeployStatus()
+  }, 60 * 1000)
+}
+
+  // 停止轮询
+const stopPolling = () => {
+  if (pollingTimer) {
+    clearInterval(pollingTimer)
+    pollingTimer = null
+  }
+}
+
+  // 初始化 Intersection Observer
+  function initIntersectionObserver() {
+    if (!sentinelRef.value) {
+      console.warn('哨兵元素不存在，无法初始化 Observer')
+      return
+    }
+    
+    // 如果已有 observer，先断开
+    if (observer) {
+      observer.disconnect()
+      observer = null
+    }
+
+    observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && hasMore.value && !isLoadingMore.value) {
+            console.log('哨兵元素进入视口，触发加载更多')
+            loadMore()
+          }
+        })
+      },
+      {
+        root: null,
+        rootMargin: '100px', // 提前100px开始加载
+        threshold: 0.1
+      }
+    )
+
+    observer.observe(sentinelRef.value)
+    console.log('Intersection Observer 已初始化并观察哨兵元素')
   }
 
-  // 下一页
-  function goToNextPage() {
-    if (hasNextPage.value) {
-      fetchMetaAppList(currentPage.value + 1)
-    }
-  }
-
-  // 跳转到指定页
-  function goToPage(page: number) {
-    if (page >= 1 && page <= totalPages.value) {
-      fetchMetaAppList(page)
+  // 清理 Intersection Observer
+  function cleanupIntersectionObserver() {
+    if (observer) {
+      observer.disconnect()
+      observer = null
     }
   }
 
@@ -388,15 +536,55 @@ const loadUserInfo = async (app: PinInfo) => {
       // 如果content格式是metafile://{PINID}，提取PINID
       if (content.startsWith('metafile://')) {
         const pinId = content.replace('metafile://', '')
-        window.open(`https://man.metaid.io/content/${pinId}`, '_blank')
+       
+        window.open(`${import.meta.env.VITE_METAFS_INDEXER_URL}/${pinId}`, '_blank')
       } else {
+       
         // 如果不是metafile格式，直接使用content作为PINID
-        window.open(`https://man.metaid.io/content/${content}`, '_blank')
+        window.open(`${import.meta.env.VITE_METAFS_INDEXER_URL}/${content}`, '_blank')
+      }
+    }
+
+      if (item.contentSummary?.code) {
+      let code = item.contentSummary.code
+      // 如果content格式是metafile://{PINID}，提取PINID
+      if (code.startsWith('metafile://')) {
+        const pinId = code.replace('metafile://', '')
+       
+        window.open(`${import.meta.env.VITE_METAFS_INDEXER_URL}/${pinId}`, '_blank')
+      } else {
+       
+        // 如果不是metafile格式，直接使用content作为PINID
+        window.open(`${import.meta.env.VITE_METAFS_INDEXER_URL}/${code}`, '_blank')
       }
     }
   }
 
+  function isFieldInPathArray(pathStr, field) {
+  if (!pathStr || typeof pathStr !== 'string') {
+    return false;
+  }
+  
+  // 将路径字符串按斜杠分割成数组
+  const pathArray = pathStr.split('/');
+  
+  // 检查字段是否在数组中
+  return pathArray.includes(field);
+}
 
+  function showRunBtn(item: any){
+     if (!item.id) {
+     
+      return false
+    }
+
+    const runtime = item.contentSummary?.runtime || ''
+    const isFontEndRun=isFieldInPathArray(runtime,'browser') || ''
+
+    if(isFontEndRun){
+      return true
+    }else return false
+  }
 
 
    // 处理运行按钮点击事件
@@ -410,6 +598,11 @@ const loadUserInfo = async (app: PinInfo) => {
     const content = item.contentSummary?.content || ''
     const contentType = item.contentSummary?.contentType || ''
     const runtime = item.contentSummary?.runtime || ''
+    const isFontEndRun=isFieldInPathArray(runtime,'browser') || ''
+
+    if (content.startsWith('metafile://') && contentType == 'application/zip' && isFontEndRun) {
+     return window.open(`https://www.metaweb.world/metaapp/${item.id}/index.html`, '_blank')
+    }
 
     // 判断是否为 metafile:// 格式的源码包，且不是 text/html 类型
     if (content.startsWith('metafile://') && contentType !== 'text/html') {
@@ -418,7 +611,7 @@ const loadUserInfo = async (app: PinInfo) => {
       return
     }
 
-    window.open(`https://www.metaweb.world/metaapp/index.html?pinid=${item.id}`, '_blank')
+    window.open(`https://www.metaweb.world/metaapp/${item.id}/index.html`, '_blank')
   }
 
   function openSubmitModal() {
@@ -434,15 +627,11 @@ function formatPinId(pinId: string): string {
   return `${pinId.slice(0, 4)}...${pinId.slice(-4)}`
 }
 
-// 复制 PIN ID 到剪贴板
-async function copyPinId(pinId: string) {
-  try {
-    await navigator.clipboard.writeText(pinId)
-    showToast('PIN ID 已复制到剪贴板', 'success')
-  } catch (error) {
-    console.error('复制失败:', error)
-    showToast('复制失败', 'error')
-  }
+// 跳转到区块链浏览器查看交易
+function openTxLink(txid: string) {
+  if (!txid) return
+  const url = `https://www.mvcscan.com/tx/${txid}`
+  window.open(url, '_blank')
 }
 
 // 格式化时间戳为日期显示
@@ -467,12 +656,30 @@ function openEditModal(item: PinInfo) {
 // Handle edit success
 function handleEditSuccess() {
   // Refresh the list to show updated data
-  fetchMetaAppList(currentPage.value)
+  nextCursor.value = 0
+  hasMore.value = true
+  fetchMetaAppList(false)
+}
+
+// Handle card click - navigate to detail page
+function handleCardClick(item: PinInfo) {
+  router.push(`/metaapp/detail/${item.id}`)
 }
 
 // 页面加载时获取MetaApp列表
 onMounted(async () => {
-  await fetchMetaAppList(1)
+  await fetchMetaAppList(false)
+  // 启动轮询
+  startPolling()
+  // 初始化 Intersection Observer
+  await nextTick()
+  initIntersectionObserver()
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  stopPolling()
+  cleanupIntersectionObserver()
 })
   </script>
 
@@ -726,7 +933,7 @@ onMounted(async () => {
         line-height: 1;
       }
 
-      .copy-icon {
+      .link-icon {
         cursor: pointer;
         color: #999999;
         transition: color 0.2s;
@@ -863,56 +1070,50 @@ onMounted(async () => {
       color: white;
     
     }
+
+    .btn-deploying {
+      background: #EEF5FF;
+      color: #387CF6;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: not-allowed;
+      opacity: 0.7;
+
+      .loading-icon {
+        animation: spin 1s linear infinite;
+      }
+    }
   }
 
-  .pagination {
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  // 无限滚动哨兵元素样式
+  .scroll-sentinel {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px;
     padding: 24px 0;
+    min-height: 60px;
 
-    .pagination-btn,
-    .pagination-number {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 40px;
-      height: 40px;
-      padding: 0 12px;
-      border: 1px solid #e5e7eb;
-      background: white;
-      border-radius: 8px;
+    .loading-more {
+      color: #6b7280;
       font-size: 14px;
-      font-weight: 500;
-      color: #374151;
-      cursor: pointer;
-      transition: all 0.2s;
-
-      &:hover:not(:disabled) {
-        border-color: #000;
-        color: white;
-        background: #000;
-      }
-
-      &.active {
-        border-color: #303133;
-        background: #303133;
-        color: white;
-      }
-
-      &:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-        color: #9ca3af;
-        background: #f9fafb;
-      }
     }
+  }
 
-    .pagination-ellipsis {
-      padding: 0 8px;
-      color: #9ca3af;
-    }
+  .no-more-data {
+    text-align: center;
+    padding: 24px 0;
+    color: #9ca3af;
+    font-size: 14px;
   }
 
   // 移动端响应式样式

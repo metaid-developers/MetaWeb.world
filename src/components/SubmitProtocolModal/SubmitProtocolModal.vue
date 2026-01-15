@@ -70,7 +70,7 @@ const formData = ref({
   intro: '',
   protocolAttachments: [] as string[], // 改为数组类型
   metadata: '',
-  protocolContentType: mimeTypes[1], // 默认 application/json5
+  protocolContentType: mimeTypes[0], // 默认 application/json5
   protocolEncoding: encodingTypes[0], // 默认 utf-8
 })
 
@@ -173,7 +173,9 @@ const parseValue = (value: string, type: string): any => {
   }
 
   try {
+    
     switch (type) {
+      
       case 'Boolean':
         // 解析布尔值
         const lowerValue = value.trim().toLowerCase()
@@ -192,6 +194,7 @@ const parseValue = (value: string, type: string): any => {
           if (typeof parsedObj !== 'object' || Array.isArray(parsedObj)) {
             throw new Error('Not a valid object')
           }
+          
           return parsedObj
         } catch (jsonError) {
           // 如果标准JSON解析失败，尝试修复常见的JSON格式问题
@@ -243,22 +246,92 @@ const parseValue = (value: string, type: string): any => {
           }
           return parsedArr
         } catch (jsonError) {
-          // 如果标准JSON解析失败，尝试修复常见的JSON格式问题
+          // 如果标准JSON解析失败，尝试解析类似 [x,y] 或 ["x","y"] 或 [1,2] 等格式
           try {
-            // 修复key没有双引号的问题（如果数组包含对象）
-            let fixedJson = value.trim()
-            
-            // 修复所有可能的key格式问题
-            fixedJson = fixedJson.replace(/(\w+):/g, '"$1":')
-            
-            // 修复字符串值没有引号的问题（简单情况）
-            fixedJson = fixedJson.replace(/:\s*([^",{\[\s][^,}\]]*?)([,}])/g, ': "$1"$2')
-            
-            const parsedArr = JSON.parse(fixedJson)
-            if (!Array.isArray(parsedArr)) {
-              throw new Error('Not a valid array')
+            const trimmedValue = value.trim()
+            // 检查是否以 [ 开头和 ] 结尾
+            if (!trimmedValue.startsWith('[') || !trimmedValue.endsWith(']')) {
+              throw new Error('Not a valid array format')
             }
-            return parsedArr
+            
+            // 提取数组内容（去掉外层的 [ 和 ]）
+            const content = trimmedValue.slice(1, -1).trim()
+            
+            // 如果内容为空，返回空数组
+            if (!content) {
+              return []
+            }
+            
+            // 分割数组元素，考虑嵌套的数组和对象
+            const elements: string[] = []
+            let currentElement = ''
+            let depth = 0
+            let inString = false
+            let stringChar = ''
+            
+            for (let i = 0; i < content.length; i++) {
+              const char = content[i]
+              const prevChar = i > 0 ? content[i - 1] : ''
+              
+              // 处理字符串引号
+              if ((char === '"' || char === "'") && prevChar !== '\\') {
+                if (!inString) {
+                  inString = true
+                  stringChar = char
+                } else if (char === stringChar) {
+                  inString = false
+                  stringChar = ''
+                }
+                currentElement += char
+              } else if (inString) {
+                // 在字符串内，直接添加字符
+                currentElement += char
+              } else {
+                // 处理括号深度
+                if (char === '[' || char === '{') {
+                  depth++
+                  currentElement += char
+                } else if (char === ']' || char === '}') {
+                  depth--
+                  currentElement += char
+                } else if (char === ',' && depth === 0) {
+                  // 在顶层遇到逗号，分割元素
+                  elements.push(currentElement.trim())
+                  currentElement = ''
+                } else {
+                  currentElement += char
+                }
+              }
+            }
+            
+            // 添加最后一个元素
+            if (currentElement.trim()) {
+              elements.push(currentElement.trim())
+            }
+            
+            // 解析每个元素
+            const parsedElements = elements.map(element => {
+              const trimmed = element.trim()
+              
+              // 尝试解析为JSON值
+              try {
+                return JSON.parse(trimmed)
+              } catch {
+                // 如果不是有效的JSON，尝试判断类型
+                // 如果是数字
+                if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+                  return Number(trimmed)
+                }
+                // 如果是布尔值
+                if (trimmed === 'true') return true
+                if (trimmed === 'false') return false
+                if (trimmed === 'null') return null
+                // 否则作为字符串返回
+                return trimmed
+              }
+            })
+            
+            return parsedElements
           } catch (fixError) {
             throw new Error('Invalid array format')
           }
@@ -334,6 +407,7 @@ const generateJSON5WithComments = () => {
           try {
             // 使用JSON.stringify重新格式化，确保格式正确
             const arrStr = JSON.stringify(parsedValue, null, 2)
+            
             // 为每行添加适当的缩进
             valueStr = arrStr.split('\n').map((line, i) => i === 0 ? line : '  ' + line).join('\n')
           } catch (error) {
@@ -361,6 +435,7 @@ const generateJSON5WithComments = () => {
 
 // 提交表单
 const handleSubmit = async () => {
+ 
   // 验证必填字段
   if (!formData.value.title.trim()) {
     showToast('请填写标题', 'warning')
@@ -488,7 +563,7 @@ const resetForm = () => {
     intro: '',
     protocolAttachments: [], // 重置为空数组
     metadata: '',
-    protocolContentType: mimeTypes[1],
+    protocolContentType: mimeTypes[0],
     protocolEncoding: encodingTypes[0],
   }
   metaDataItems.value = []
@@ -852,7 +927,7 @@ const getPlaceholder = (type: string) => {
                           @items-removed="handleFilesRemoved"
                         />
                         <p class="text-xs text-gray-500 mt-1">
-                          支持文件上传或手动输入TXID，单个文件大小限制1MB，文件将在提交协议时上传到链上
+                          支持文件上传或手动输入PINID，文件将在提交协议时上传到链上
                         </p>
                       </div>
 

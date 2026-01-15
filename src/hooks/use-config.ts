@@ -29,6 +29,7 @@ export function useConfig() {
   // 常用配置的计算属性
 
   const manBaseUrl=computed(()=>config.value.api.MAN_BASE_URL)
+  const metaFsUrl=computed(()=>config.value.api.metafsUrl)
   const isDebugMode = computed(() => config.value.app.debug);
   const currentTheme = computed(() => config.value.ui.theme);
   const currentLanguage = computed(() => config.value.ui.language);
@@ -39,7 +40,7 @@ export function useConfig() {
     updateConfig,
     getConfigValue,
     isFeatureEnabled,
-
+    metaFsUrl,
     manBaseUrl,
     isDebugMode,
     currentTheme,
@@ -55,6 +56,7 @@ export function useApiConfig() {
   const { config } = useConfig();
   
   return {
+    metafsUrl:computed(() => config.value.api.metafsUrl),
     baseUrl: computed(() => config.value.api.baseUrl),
     timeout: computed(() => config.value.api.timeout),
     retryAttempts: computed(() => config.value.api.retryAttempts)

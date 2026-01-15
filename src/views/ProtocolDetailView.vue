@@ -26,11 +26,20 @@
             </button>
           </div>
           <div class="protocol-meta">
-            <span class="meta-item">
-              <svg class="meta-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span>创建者: {{ protocolAuthor }}</span>
+            <span class="meta-item creator-info">
+              <UserAvatar
+                :image="protocolAuthor?.avatar || ''"
+                :meta-id="protocolAuthor?.metaid || ''"
+                :name="protocolAuthor?.name || ''"
+                class="creator-avatar"
+                :meta-name="''"
+                :disabled="true"
+                :is-custom="false"
+              />
+              <div class="creator-details">
+                <span class="creator-name">{{ protocolAuthor?.name || protocolAuthor?.metaid?.slice(0,6) || 'Unknown' }}</span>
+                <span class="creator-metaid">MetaID: {{ protocolAuthor?.metaid?.slice(0,6) || 'N/A' }}</span>
+              </div>
             </span>
             <span class="meta-item">
               <svg class="meta-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -91,6 +100,79 @@
               <div class="info-item">
                 <span class="info-label">编码:</span>
                 <span class="info-value">UTF-8</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!--历史版本-->
+        <div class="protocol-section">
+          <h2 class="section-title">历史版本</h2>
+          <div class="section-content">
+            <!-- 没有历史版本 -->
+            <div v-if="!protocolDetail?.modify_history || protocolDetail.modify_history.length === 0" class="no-history">
+              <svg class="no-history-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 8V12L15 15M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>没有历史版本</span>
+            </div>
+            <!-- 历史版本列表 -->
+            <div v-else class="history-list">
+              <div
+                v-for="(item, index) in displayedHistoryItems"
+                :key="item"
+                class="history-item"
+              >
+                <span class="history-index">#{{ getHistoryItemIndex(index) }}</span>
+                <span class="history-id" :title="item">{{ formatHistoryId(item) }}</span>
+                <span
+                  v-if="item === protocolDetail.modify_history[protocolDetail.modify_history.length - 1]"
+                  class="history-latest-tag"
+                >最新</span>
+                <div class="history-actions">
+                  <!-- 链接跳转到 MVCScan -->
+                  <a
+                    :href="`https://www.mvcscan.com/tx/${item.slice(0, -2)}`"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="history-action-btn"
+                    title="在 MVCScan 查看交易"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M18 13V19C18 19.5304 17.7893 20.0391 17.4142 20.4142C17.0391 20.7893 16.5304 21 16 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V8C3 7.46957 3.21071 6.96086 3.58579 6.58579C3.96086 6.21071 4.46957 6 5 6H11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M15 3H21V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </a>
+                  <!-- 路由跳转到协议详情 -->
+                  <a
+                    :href="`/protocols/${item}`"
+                    class="history-action-btn"
+                    title="查看该版本详情"
+                    @click.prevent="navigateToVersion(item)"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </a>
+                </div>
+              </div>
+              <!-- 展开/收起按钮 -->
+              <div v-if="protocolDetail.modify_history.length > 3" class="history-toggle">
+                <button @click="toggleHistoryExpand" class="history-toggle-btn">
+                  <span>{{ isHistoryExpanded ? '收起' : `展开 (${protocolDetail.modify_history.length - 3} 项)` }}</span>
+                  <svg 
+                    class="toggle-icon" 
+                    :class="{ 'expanded': isHistoryExpanded }"
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none"
+                  >
+                    <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -248,10 +330,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { useCreateProtocols } from '@/hooks/use-create-protocols'
 import { useToast } from '@/components/Toast/useToast'
 import { type PinDetail, getPinDetail } from '@/api/ManV2'
-import { getUserInfoByAddress } from "@/api/man";
+import { getUserInfoByAddress,type UserInfo } from "@/api/man";
 import { formatDateTime } from "@/utils/format";
 import { useUserStore } from '@/stores/user'
 import EditProtocolModal from '@/components/EditProtocolModal/EditProtocolModal.vue'
+import UserAvatar from '@/components/UserAvatar/UserAvatar.vue'
 // 接口定义
 interface Comment {
   id: string
@@ -282,7 +365,7 @@ const protocolTitle = ref('')
 const protocolDescription = ref('')
 const protocolContentType=ref('')
 const protocolVersion=ref('')
-const protocolAuthor=ref('')
+const protocolAuthor:Ref<UserInfo>=ref()
 const protocolName=ref('')
 const protocolPath=ref('')
 const protocolDetail:Ref<PinDetail>=ref()
@@ -292,13 +375,50 @@ const protocolContent = ref()
 // 编辑协议弹窗状态
 const showEditModal = ref(false)
 
+// 历史版本展开/收起状态
+const isHistoryExpanded = ref(false)
+
 // 计算属性：判断当前用户是否是协议创建者
 const isCreator = computed(() => {
+  
   if (!protocolDetail.value || !userStore.last?.address) {
     return false
   }
   return protocolDetail.value.creator?.toLowerCase() === userStore.last.address?.toLowerCase()
 })
+
+// 计算属性：显示的历史版本列表
+const displayedHistoryItems = computed(() => {
+  if (!protocolDetail.value?.modify_history) {
+    return []
+  }
+  const history = protocolDetail.value.modify_history
+  // 如果历史版本数量 <= 3 或已展开，显示全部
+  if (history.length <= 3 || isHistoryExpanded.value) {
+    return history
+  }
+  // 否则只显示最后 3 个（最新的）
+  return history.slice(-3)
+})
+
+// 获取历史项的索引（在原始数组中的位置）
+const getHistoryItemIndex = (displayIndex: number): number => {
+  if (!protocolDetail.value?.modify_history) {
+    return displayIndex + 1
+  }
+  const history = protocolDetail.value.modify_history
+  if (history.length <= 3 || isHistoryExpanded.value) {
+    return displayIndex + 1
+  }
+  // 如果折叠状态，显示的是最后 3 个，需要计算原始索引
+  const startIndex = history.length - 3
+  return startIndex + displayIndex + 1
+}
+
+// 切换历史版本展开/收起
+const toggleHistoryExpand = () => {
+  isHistoryExpanded.value = !isHistoryExpanded.value
+}
 
 // 编辑成功后的处理
 const handleEditSuccess = () => {
@@ -479,13 +599,24 @@ const formatTime = (date: Date): string => {
   const minutes = Math.floor(diff / (1000 * 60))
   const hours = Math.floor(diff / (1000 * 60 * 60))
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  
+
   if (minutes < 1) return '刚刚'
   if (minutes < 60) return `${minutes}分钟前`
   if (hours < 24) return `${hours}小时前`
   if (days < 7) return `${days}天前`
-  
+
   return date.toLocaleDateString('zh-CN')
+}
+
+// 格式化历史版本ID，显示前后8位，中间用...替换
+const formatHistoryId = (id: string): string => {
+  if (!id || id.length <= 16) return id
+  return `${id.slice(0, 8)}...${id.slice(-8)}`
+}
+
+// 点击历史版本跳转并reload应用
+const navigateToVersion = (item: string) => {
+  window.location.href = `/protocols/${item}`
 }
 
 onMounted(async () => {
@@ -515,9 +646,10 @@ onMounted(async () => {
         protocolTitle.value=contentSummary?.title
         protocolContentType.value=contentSummary?.protocolContentType
         protocolVersion.value=contentSummary?.version
-        protocolAuthor.value=(await getUserInfoByAddress(detail.creator || detail.address)).name || detail.metaid.slice(0,6)
+      
         protocolName.value=contentSummary?.protocolName
         protocolPath.value=contentSummary?.path
+        getUserInfoByAddress(detail.creator || detail.address).then((user)=>protocolAuthor.value=user)
       } catch (e) {
         console.error('解析contentSummary失败:', e)
       
@@ -693,6 +825,9 @@ onMounted(async () => {
   gap: 20px;
   color: #6b7280;
   font-size: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+  
 
   @media (max-width: 480px) {
     gap: 16px;
@@ -704,6 +839,40 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.creator-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .creator-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .creator-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+
+    .creator-name {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #111827;
+      line-height: 1.2;
+    }
+
+    .creator-metaid {
+      font-size: 0.75rem;
+      color: #6b7280;
+      line-height: 1.2;
+    }
+  }
 }
 
 .meta-icon {
@@ -862,6 +1031,155 @@ onMounted(async () => {
   word-break: break-all;
 
   @media (max-width: 480px) {
+    font-size: 13px;
+  }
+}
+
+// 历史版本区域样式
+.no-history {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+
+  .no-history-icon {
+    opacity: 0.5;
+  }
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+
+  @media (max-width: 480px) {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+}
+
+.history-index {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #e5e7eb;
+  padding: 2px 8px;
+  border-radius: 4px;
+  min-width: 32px;
+  text-align: center;
+}
+
+.history-id {
+  flex: 1;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  color: #374151;
+  word-break: break-all;
+
+  @media (max-width: 480px) {
+    font-size: 12px;
+  }
+}
+
+.history-latest-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+
+  &:hover {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #ffffff;
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+.history-toggle {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.history-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #374151;
+  }
+
+  .toggle-icon {
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+
+    &.expanded {
+      transform: rotate(180deg);
+    }
+  }
+
+  @media (max-width: 480px) {
+    padding: 6px 12px;
     font-size: 13px;
   }
 }
